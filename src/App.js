@@ -253,7 +253,7 @@ function GameAnalysis() {
 
     // This effect runs only once to initialize the engine
     useEffect(() => {
-        // Correct filename based on the files the user has
+        // Use the exact filename you provided
         const STOCKFISH_URL = '/stockfish-17-lite-single.js';
         
         const worker = new Worker(STOCKFISH_URL);
@@ -262,34 +262,33 @@ function GameAnalysis() {
         const onMessage = (event) => {
             const message = String(event.data);
             
-            if (message.startsWith('uciok')) {
-                worker.postMessage('isready');
-            }
             if (message === 'readyok') {
                 setEngineStatus('Ready');
-            }
-            
-            // Handle analysis results
-            if (message.includes('score cp')) {
-                const scoreMatch = message.match(/score cp (-?\d+)/);
-                if (scoreMatch) {
-                    setEvaluation((parseInt(scoreMatch[1], 10) / 100).toFixed(2));
+            } else if (message.startsWith('uciok')) {
+                // Sent after 'uci' command, now we can send 'isready'
+                worker.postMessage('isready');
+            } else {
+                 if (message.includes('score cp')) {
+                    const scoreMatch = message.match(/score cp (-?\d+)/);
+                    if (scoreMatch) {
+                        setEvaluation((parseInt(scoreMatch[1], 10) / 100).toFixed(2));
+                    }
                 }
-            }
-            if (message.includes('info depth') && message.includes(' pv ')) {
-                const moves = message.split(' pv ')[1].split(' ');
-                const topEngineMoves = [];
-                const tempGame = new Chess(currentGameForEngine.current.fen()); 
-                for (let i = 0; i < Math.min(3, moves.length); i++) {
-                    try {
-                        const moveResult = tempGame.move(moves[i], { sloppy: true });
-                        if (moveResult) {
-                           topEngineMoves.push(moveResult.san);
-                           tempGame.undo();
-                        }
-                    } catch (e) { /* ignore */ }
+                if (message.includes('info depth') && message.includes(' pv ')) {
+                    const moves = message.split(' pv ')[1].split(' ');
+                    const topEngineMoves = [];
+                    const tempGame = new Chess(currentGameForEngine.current.fen()); 
+                    for (let i = 0; i < Math.min(3, moves.length); i++) {
+                        try {
+                            const moveResult = tempGame.move(moves[i], { sloppy: true });
+                            if (moveResult) {
+                               topEngineMoves.push(moveResult.san);
+                               tempGame.undo();
+                            }
+                        } catch (e) { /* ignore */ }
+                    }
+                    setTopMoves(topEngineMoves);
                 }
-                setTopMoves(topEngineMoves);
             }
         };
 
@@ -300,6 +299,7 @@ function GameAnalysis() {
              console.error("Stockfish worker error:", e);
         };
 
+        // Start the initialization process
         worker.postMessage('uci');
         
         return () => {
@@ -320,8 +320,9 @@ function GameAnalysis() {
         setPgnError('');
         const newGame = new Chess();
         try {
+            // Use the modern and more flexible .loadPgn() method from chess.js v1+
             if (!newGame.loadPgn(pgn.trim())) throw new Error();
-            if (newGame.history().length === 0) throw new Error("Empty PGN");
+            if (newGame.history().length === 0) throw new Error("Empty or invalid PGN");
             
             const startingFen = new Chess().fen();
             setGame(new Chess(startingFen));

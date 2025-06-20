@@ -1,24 +1,22 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { Chessboard } from 'react-chessboard';
 import { Chess } from 'chess.js';
 
 // --- Theme and Utility Hooks ---
-
 const useTheme = () => {
     const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
-
     useEffect(() => {
         const root = window.document.documentElement;
         root.classList.remove(theme === 'light' ? 'dark' : 'light');
         root.classList.add(theme);
         localStorage.setItem('theme', theme);
     }, [theme]);
-
     return [theme, setTheme];
 };
 
 // --- API & Data Fetching ---
+const API_BASE_URL = 'http://localhost:5000/api';
 
 const FRIENDS = [
     { name: "Ulysse", username: "realulysse" },
@@ -28,18 +26,19 @@ const FRIENDS = [
     { name: "Kevin", username: "kevor24" },
 ];
 
-async function fetchData(fileName) {
+async function fetchData(endpoint) {
     try {
-        const response = await fetch(`/${fileName}`);
-        if (!response.ok) throw new Error(`Network response was not ok for ${fileName}`);
+        const response = await fetch(`${API_BASE_URL}${endpoint}`);
+        if (!response.ok) throw new Error(`Network response was not ok for ${endpoint}`);
         return await response.json();
     } catch (error) {
-        console.error(`Failed to fetch ${fileName}:`, error);
+        console.error(`Failed to fetch ${endpoint}:`, error);
         return [];
     }
 }
 
 async function fetchPlayerAnalysis(username) {
+    // This function remains the same as it fetches from the external Chess.com API
     try {
         const statsPromise = fetch(`https://api.chess.com/pub/player/${username}/stats`);
         const archivesPromise = fetch(`https://api.chess.com/pub/player/${username}/games/archives`);
@@ -52,8 +51,7 @@ async function fetchPlayerAnalysis(username) {
         const gamesRes = await fetch(latestGamesUrl);
         if (!gamesRes.ok) return { stats, analysis: {} };
         const gamesData = await gamesRes.json();
-        const whiteOpenings = {};
-        const blackOpenings = {};
+        const whiteOpenings = {}, blackOpenings = {};
         const usernameLower = username.toLowerCase();
         for (const game of gamesData.games) {
             if (game.rules !== 'chess') continue;
@@ -76,7 +74,6 @@ async function fetchPlayerAnalysis(username) {
 }
 
 // --- UI Components ---
-
 const SunIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>;
 const MoonIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>;
 
@@ -100,8 +97,8 @@ function Dashboard({ currentRatings, ratingHistory, theme }) {
         );
     };
     
-    const chartColor = theme === 'dark' ? '#9ca3af' : '#9e9e9e'; // Gray for text/axes
-    const gridColor = theme === 'dark' ? '#374151' : '#e0e0e0';  // Darker gray for grid
+    const chartColor = theme === 'dark' ? '#9ca3af' : '#9e9e9e';
+    const gridColor = theme === 'dark' ? '#374151' : '#e0e0e0';
 
     return (
         <div>
@@ -244,102 +241,170 @@ function PlayerStats({ theme }) {
 
 function GameAnalysis() {
     const [pgn, setPgn] = useState('');
-    const [analysis, setAnalysis] = useState([]);
-    const [fen, setFen] = useState('start');
-    const [status, setStatus] = useState('Idle');
-    const [currentPly, setCurrentPly] = useState(0);
-    const movesRef = useRef([]);
-    const analysisQueue = useRef([]);
+    const [pgnError, setPgnError] = useState('');
+    const [game, setGame] = useState(new Chess());
+    const [history, setHistory] = useState([]);
+    const [currentMove, setCurrentMove] = useState(-1);
+    const [evaluation, setEvaluation] = useState('');
+    const [topMoves, setTopMoves] = useState([]);
+    const [engineStatus, setEngineStatus] = useState('Loading Engine...');
     const stockfish = useRef(null);
 
-    useEffect(() => {
-        stockfish.current = new Worker('/stockfish.js');
-        stockfish.current.onmessage = (event) => {
-            const message = event.data;
-            if (message.startsWith('bestmove')) {
-                // Analysis for one move is done, process next in queue
-                processAnalysisQueue();
-            } else if (message.includes('score cp')) {
-                const scoreMatch = message.match(/score cp (-?\d+)/);
-                if (scoreMatch) {
-                    const evaluation = (parseInt(scoreMatch[1], 10) / 100).toFixed(2);
-                    setAnalysis(prev => {
-                        const newAnalysis = [...prev];
-                        if (newAnalysis.length > 0) {
-                           newAnalysis[newAnalysis.length - 1].evaluation = evaluation;
-                        }
-                        return newAnalysis;
-                    });
-                }
+    // Using useCallback to memoize the message handler function
+    const handleEngineMessage = useCallback((message, currentGame) => {
+        if (message.includes('score cp')) {
+            const scoreMatch = message.match(/score cp (-?\d+)/);
+            if (scoreMatch) {
+                setEvaluation((parseInt(scoreMatch[1], 10) / 100).toFixed(2));
             }
-        };
-        stockfish.current.postMessage('uci');
-        stockfish.current.postMessage('isready');
-        return () => stockfish.current.terminate();
+        }
+        if (message.includes('info depth') && message.includes(' pv ')) {
+            const moves = message.split(' pv ')[1].split(' ');
+            const topEngineMoves = [];
+            const tempGame = new Chess(currentGame.fen()); 
+            for (let i = 0; i < Math.min(3, moves.length); i++) {
+                try {
+                    const moveResult = tempGame.move(moves[i], { sloppy: true });
+                    if (moveResult) {
+                        topEngineMoves.push(moveResult.san);
+                        tempGame.undo();
+                    }
+                } catch (e) { /* ignore */ }
+            }
+            setTopMoves(topEngineMoves);
+        }
     }, []);
 
-    const processAnalysisQueue = () => {
-        if (analysisQueue.current.length === 0) {
-            setStatus('Done');
-            return;
-        }
-        const { fen, san } = analysisQueue.current.shift();
-        setAnalysis(prev => [...prev, { san, evaluation: '...' }]);
+    // This useEffect hook is now only for initializing and terminating the worker.
+    useEffect(() => {
+        stockfish.current = new Worker('/stockfish.js');
+        stockfish.current.postMessage('uci');
+        stockfish.current.postMessage('isready');
+        stockfish.current.onmessage = (event) => {
+            if (event.data === 'readyok') {
+                setEngineStatus('Ready');
+            } else {
+                // We pass the current 'game' state to the handler
+                setGame(prevGame => {
+                    handleEngineMessage(event.data, prevGame);
+                    return prevGame;
+                });
+            }
+        };
+
+        // Cleanup on component unmount
+        return () => {
+            stockfish.current.terminate();
+        };
+    }, [handleEngineMessage]);
+
+    const getEvaluation = (fen) => {
+        if (engineStatus !== 'Ready' || !stockfish.current) return;
+        setEvaluation('...');
+        setTopMoves([]);
         stockfish.current.postMessage(`position fen ${fen}`);
         stockfish.current.postMessage('go depth 15');
     };
 
-    const handleAnalyze = () => {
-        const tempGame = new Chess();
-        if (!tempGame.loadPgn(pgn)) {
-            alert("Invalid PGN"); return;
+    const handleLoadPgn = () => {
+        setPgnError('');
+        const newGame = new Chess();
+        try {
+            if (!newGame.loadPgn(pgn.trim())) throw new Error();
+            if (newGame.history().length === 0) throw new Error("Empty PGN");
+            
+            setGame(newGame);
+            setHistory(newGame.history({ verbose: true }));
+            setCurrentMove(-1);
+            getEvaluation(new Chess().fen()); // Get eval for starting position
+        } catch (e) {
+            setPgnError("Invalid PGN format. Please check the pasted text.");
+            setGame(new Chess());
+            setHistory([]);
+            setCurrentMove(-1);
+            setEvaluation('');
+            setTopMoves([]);
         }
-        
-        setStatus('Analyzing');
-        setAnalysis([]);
-        setCurrentPly(0);
-        setFen('start');
-        
-        const history = tempGame.history({ verbose: true });
-        movesRef.current = history;
-        analysisQueue.current = history.map(move => ({ fen: move.before, san: move.san }));
-        
-        processAnalysisQueue(); // Start the analysis
     };
-    
-    const navigateToPly = (ply) => {
-        const tempGame = new Chess();
-        for (let i = 0; i < ply; i++) {
-            tempGame.move(movesRef.current[i].san);
+
+    const navigateToMove = (index) => {
+        const newGame = new Chess();
+        const fullHistory = history.map(h => h.san);
+        for (let i = 0; i <= index; i++) {
+            newGame.move(fullHistory[i]);
         }
-        setFen(tempGame.fen());
-        setCurrentPly(ply);
+        setGame(newGame);
+        setCurrentMove(index);
+        getEvaluation(newGame.fen());
+    };
+
+    const isGameLoaded = history.length > 0;
+
+    const EvaluationBar = ({ score }) => {
+        const numScore = parseFloat(score);
+        if (isNaN(numScore)) return null;
+        const clampedScore = Math.max(-10, Math.min(10, numScore));
+        const percentage = 50 + (clampedScore * 5);
+        return (
+             <div className="w-full bg-gray-700 rounded-full h-6 dark:bg-gray-800 my-2 relative overflow-hidden">
+                <div className="bg-white h-6 rounded-full" style={{ width: `${percentage}%`, transition: 'width 0.3s ease-in-out' }} />
+                <div className="absolute inset-0 flex items-center justify-center text-sm font-bold text-black mix-blend-difference">
+                   Eval: {score}
+                </div>
+            </div>
+        );
     };
 
     return (
         <div>
             <h1 className="text-4xl font-bold mb-8 text-gray-800 dark:text-gray-200">Game Analysis</h1>
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md mb-8">
-                <textarea value={pgn} onChange={(e) => setPgn(e.target.value)} placeholder="Paste PGN here..." className="w-full h-32 p-2 border rounded-md bg-white dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"/>
-                <button onClick={handleAnalyze} disabled={status === 'Analyzing'} className="mt-4 w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 disabled:bg-gray-400 transition">
-                    {status === 'Analyzing' ? `Analyzing... (${analysis.length}/${movesRef.current.length})` : 'Analyze Game'}
-                </button>
+            
+            <div className="flex flex-col lg:flex-row gap-8 items-start">
+                <div className="w-full lg:w-auto">
+                    <Chessboard position={game.fen()} boardWidth={400} />
+                    {isGameLoaded && <EvaluationBar score={evaluation} />}
+                </div>
+                <div className="w-full lg:flex-1 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
+                     <h2 className="text-2xl font-semibold mb-4 text-gray-700 dark:text-gray-300">PGN Loader</h2>
+                     <div className="flex items-center mb-2">
+                        <span className="font-semibold mr-2 text-gray-700 dark:text-gray-300">Engine Status:</span>
+                        <span className={`px-2 py-1 text-xs font-bold rounded-full ${engineStatus === 'Ready' ? 'bg-green-200 text-green-800' : 'bg-yellow-200 text-yellow-800'}`}>{engineStatus}</span>
+                     </div>
+                     <textarea 
+                        value={pgn} 
+                        onChange={(e) => setPgn(e.target.value)} 
+                        placeholder="Paste PGN here to load a game..." 
+                        className="w-full h-32 p-2 border rounded-md bg-white dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
+                    />
+                    {pgnError && <p className="text-red-500 text-sm mt-2">{pgnError}</p>}
+                    <button 
+                        onClick={handleLoadPgn}
+                        disabled={engineStatus !== 'Ready'}
+                        className="mt-4 w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 transition disabled:bg-gray-400"
+                    >
+                        Load Game & Analyze
+                    </button>
+                    {isGameLoaded && (
+                         <div className="mt-6">
+                             <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300">Top Engine Moves:</h3>
+                             <ul className="list-decimal list-inside mt-2 text-gray-600 dark:text-gray-400">
+                                 {topMoves.map((move, index) => <li key={index}>{move}</li>)}
+                             </ul>
+                         </div>
+                    )}
+                </div>
             </div>
-            {status !== 'Idle' && (
-                <div className="flex flex-col lg:flex-row gap-8 items-start">
-                    <div className="w-full lg:w-auto">
-                        <Chessboard position={fen} boardWidth={400} />
-                    </div>
-                    <div className="w-full lg:flex-1 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
-                        <h2 className="text-2xl font-semibold mb-4 text-gray-700 dark:text-gray-300">Moves & Analysis</h2>
-                        <div className="h-96 overflow-y-auto">
-                            {analysis.map((move, index) => (
-                                <div key={index} onClick={() => navigateToPly(index + 1)} className={`p-2 cursor-pointer rounded ${currentPly === index + 1 ? 'bg-indigo-100 dark:bg-indigo-900/50' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
-                                    <span className="font-semibold text-gray-800 dark:text-gray-200">{Math.floor(index/2) + 1}.{index % 2 === 0 ? ' ' : '...'} {move.san}</span>
-                                    <span className="ml-4 text-gray-600 dark:text-gray-400">{move.evaluation}</span>
-                                </div>
-                            ))}
-                        </div>
+
+            {isGameLoaded && (
+                 <div className="mt-8 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
+                    <h2 className="text-2xl font-semibold mb-4 text-gray-700 dark:text-gray-300">Moves</h2>
+                    <div className="flex flex-wrap gap-2">
+                         <button onClick={() => navigateToMove(-1)} className={`px-3 py-1 text-sm rounded-md ${currentMove === -1 ? 'bg-indigo-600 text-white' : 'bg-gray-200 dark:bg-gray-700 dark:text-gray-300'}`}>Start</button>
+                        {history.map((move, index) => (
+                            <button key={index} onClick={() => navigateToMove(index)} className={`px-3 py-1 text-sm rounded-md ${currentMove === index ? 'bg-indigo-600 text-white' : 'bg-gray-200 dark:bg-gray-700 dark:text-gray-300'}`}>
+                                {Math.floor(index/2) + 1}.{index % 2 === 0 ? '' : '..'} {move.san}
+                            </button>
+                        ))}
                     </div>
                 </div>
             )}
@@ -353,26 +418,37 @@ export default function App() {
     const [currentRatings, setCurrentRatings] = useState([]);
     const [ratingHistory, setRatingHistory] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
         const loadAllData = async () => {
             setLoading(true);
-            // In a real app, create these JSON files from your database
-            const ratingsData = await fetchData('current_ratings.json'); 
-            const historyData = await fetchData('rating_history.json');
-            setCurrentRatings(ratingsData);
-            setRatingHistory(historyData);
-            setLoading(false);
+            setError(null);
+            try {
+                const ratingsData = await fetchData('/ratings/current');
+                const historyData = await fetchData('/ratings/history');
+                if (!Array.isArray(ratingsData) || !Array.isArray(historyData)) {
+                    throw new Error("Data from API is not in the expected format.");
+                }
+                setCurrentRatings(ratingsData);
+                setRatingHistory(historyData);
+            } catch (e) {
+                setError("Could not connect to the backend API. Please ensure the 'api.py' server is running.");
+                console.error(e);
+            } finally {
+                setLoading(false);
+            }
         };
         loadAllData();
     }, []);
 
     const renderTab = () => {
-        if (loading) return <div className="text-center p-10 text-gray-700 dark:text-gray-300">Loading application data...</div>;
+        if (loading) return <div className="text-center p-10 text-gray-700 dark:text-gray-300">Loading data from backend...</div>;
+        if (error) return <div className="text-center p-10 text-red-500 font-semibold">{error}</div>;
         switch (activeTab) {
             case 'Dashboard': return <Dashboard currentRatings={currentRatings} ratingHistory={ratingHistory} theme={theme} />;
             case 'Player Stats': return <PlayerStats theme={theme} />;
-            case 'Game Analysis': return <GameAnalysis />;
+            case 'Game Analysis': return <GameAnalysis theme={theme} />;
             default: return <Dashboard currentRatings={currentRatings} ratingHistory={ratingHistory} theme={theme} />;
         }
     };

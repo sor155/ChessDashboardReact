@@ -247,56 +247,66 @@ function GameAnalysis() {
     const [currentMove, setCurrentMove] = useState(-1);
     const [evaluation, setEvaluation] = useState('');
     const [topMoves, setTopMoves] = useState([]);
-    const [engineStatus, setEngineStatus] = useState('Loading Engine...');
+    const [engineStatus, setEngineStatus] = useState('Loading...');
     const stockfish = useRef(null);
+    const currentGameForEngine = useRef(new Chess());
 
-    // Using useCallback to memoize the message handler function
-    const handleEngineMessage = useCallback((message, currentGame) => {
-        if (message.includes('score cp')) {
-            const scoreMatch = message.match(/score cp (-?\d+)/);
-            if (scoreMatch) {
-                setEvaluation((parseInt(scoreMatch[1], 10) / 100).toFixed(2));
-            }
-        }
-        if (message.includes('info depth') && message.includes(' pv ')) {
-            const moves = message.split(' pv ')[1].split(' ');
-            const topEngineMoves = [];
-            const tempGame = new Chess(currentGame.fen()); 
-            for (let i = 0; i < Math.min(3, moves.length); i++) {
-                try {
-                    const moveResult = tempGame.move(moves[i], { sloppy: true });
-                    if (moveResult) {
-                        topEngineMoves.push(moveResult.san);
-                        tempGame.undo();
-                    }
-                } catch (e) { /* ignore */ }
-            }
-            setTopMoves(topEngineMoves);
-        }
-    }, []);
-
-    // This useEffect hook is now only for initializing and terminating the worker.
+    // This effect runs only once to initialize the engine
     useEffect(() => {
-        stockfish.current = new Worker('/stockfish.js');
-        stockfish.current.postMessage('uci');
-        stockfish.current.postMessage('isready');
-        stockfish.current.onmessage = (event) => {
-            if (event.data === 'readyok') {
+        // Correct filename based on the files the user has
+        const STOCKFISH_URL = '/stockfish-17-lite-single.js';
+        
+        const worker = new Worker(STOCKFISH_URL);
+        stockfish.current = worker;
+
+        const onMessage = (event) => {
+            const message = String(event.data);
+            
+            if (message.startsWith('uciok')) {
+                worker.postMessage('isready');
+            }
+            if (message === 'readyok') {
                 setEngineStatus('Ready');
-            } else {
-                // We pass the current 'game' state to the handler
-                setGame(prevGame => {
-                    handleEngineMessage(event.data, prevGame);
-                    return prevGame;
-                });
+            }
+            
+            // Handle analysis results
+            if (message.includes('score cp')) {
+                const scoreMatch = message.match(/score cp (-?\d+)/);
+                if (scoreMatch) {
+                    setEvaluation((parseInt(scoreMatch[1], 10) / 100).toFixed(2));
+                }
+            }
+            if (message.includes('info depth') && message.includes(' pv ')) {
+                const moves = message.split(' pv ')[1].split(' ');
+                const topEngineMoves = [];
+                const tempGame = new Chess(currentGameForEngine.current.fen()); 
+                for (let i = 0; i < Math.min(3, moves.length); i++) {
+                    try {
+                        const moveResult = tempGame.move(moves[i], { sloppy: true });
+                        if (moveResult) {
+                           topEngineMoves.push(moveResult.san);
+                           tempGame.undo();
+                        }
+                    } catch (e) { /* ignore */ }
+                }
+                setTopMoves(topEngineMoves);
             }
         };
 
-        // Cleanup on component unmount
-        return () => {
-            stockfish.current.terminate();
+        worker.addEventListener('message', onMessage);
+        
+        worker.onerror = (e) => {
+             setEngineStatus(`Error: Could not load ${STOCKFISH_URL}. Make sure it and the corresponding .wasm file are in the /public folder.`);
+             console.error("Stockfish worker error:", e);
         };
-    }, [handleEngineMessage]);
+
+        worker.postMessage('uci');
+        
+        return () => {
+            worker.removeEventListener('message', onMessage);
+            worker.terminate();
+        };
+    }, []);
 
     const getEvaluation = (fen) => {
         if (engineStatus !== 'Ready' || !stockfish.current) return;
@@ -313,10 +323,12 @@ function GameAnalysis() {
             if (!newGame.loadPgn(pgn.trim())) throw new Error();
             if (newGame.history().length === 0) throw new Error("Empty PGN");
             
-            setGame(newGame);
+            const startingFen = new Chess().fen();
+            setGame(new Chess(startingFen));
+            currentGameForEngine.current = new Chess(startingFen);
             setHistory(newGame.history({ verbose: true }));
             setCurrentMove(-1);
-            getEvaluation(new Chess().fen()); // Get eval for starting position
+            getEvaluation(startingFen);
         } catch (e) {
             setPgnError("Invalid PGN format. Please check the pasted text.");
             setGame(new Chess());
@@ -334,6 +346,7 @@ function GameAnalysis() {
             newGame.move(fullHistory[i]);
         }
         setGame(newGame);
+        currentGameForEngine.current = new Chess(newGame.fen());
         setCurrentMove(index);
         getEvaluation(newGame.fen());
     };

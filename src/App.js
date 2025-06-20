@@ -80,14 +80,12 @@ const MoonIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height
 function Dashboard({ currentRatings, ratingHistory, theme }) {
     const [filteredHistory, setFilteredHistory] = useState([]);
     const [selectedPlayers, setSelectedPlayers] = useState(() => FRIENDS.map(f => f.name));
-    const [selectedCategory, setSelectedCategory] = useState("All");
+    const [selectedCategory, setSelectedCategory] = useState("Rapid");
 
     useEffect(() => {
-        let data = ratingHistory;
-        if (selectedCategory !== "All") {
-            data = data.filter(h => h.category.includes(selectedCategory));
-        }
-        data = data.filter(h => selectedPlayers.includes(h.player_name));
+        const data = ratingHistory
+            .filter(h => h.category.includes(selectedCategory))
+            .filter(h => selectedPlayers.includes(h.player_name));
         setFilteredHistory(data);
     }, [ratingHistory, selectedPlayers, selectedCategory]);
 
@@ -119,9 +117,24 @@ function Dashboard({ currentRatings, ratingHistory, theme }) {
                             {currentRatings.map((player, index) => (
                                 <tr key={player.friend_name} className="dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                                     <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{player.friend_name}</td>
-                                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{player.rapid_rating}</td>
-                                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{player.blitz_rating}</td>
-                                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{player.bullet_rating}</td>
+                                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                                        {player.rapid_rating}
+                                        <span className={player.rapid_change >= 0 ? 'text-green-500' : 'text-red-500'}>
+                                            ({player.rapid_change >= 0 ? '+' : ''}{player.rapid_change})
+                                        </span>
+                                    </td>
+                                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                                        {player.blitz_rating}
+                                        <span className={player.blitz_change >= 0 ? 'text-green-500' : 'text-red-500'}>
+                                            ({player.blitz_change >= 0 ? '+' : ''}{player.blitz_change})
+                                        </span>
+                                    </td>
+                                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                                        {player.bullet_rating}
+                                        <span className={player.bullet_change >= 0 ? 'text-green-500' : 'text-red-500'}>
+                                            ({player.bullet_change >= 0 ? '+' : ''}{player.bullet_change})
+                                        </span>
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>
@@ -134,7 +147,9 @@ function Dashboard({ currentRatings, ratingHistory, theme }) {
                     <div>
                         <label className="font-semibold mr-2 text-gray-700 dark:text-gray-300">Category:</label>
                         <select onChange={(e) => setSelectedCategory(e.target.value)} value={selectedCategory} className="p-2 border rounded-md bg-white dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600">
-                            <option>All</option><option>Rapid</option><option>Blitz</option><option>Bullet</option>
+                            <option>Rapid</option>
+                            <option>Blitz</option>
+                            <option>Bullet</option>
                         </select>
                     </div>
                     <div>
@@ -320,18 +335,48 @@ function GameAnalysis() {
         setPgnError('');
         const newGame = new Chess();
         try {
-            // Use the modern and more flexible .loadPgn() method from chess.js v1+
-            if (!newGame.loadPgn(pgn.trim())) throw new Error();
-            if (newGame.history().length === 0) throw new Error("Empty or invalid PGN");
-            
+            let pgnString = pgn.trim();
+    
+            // 1. Extract all PGN tags using a regular expression.
+            const tagRegex = /\[\s*(\w+)\s*"([^"]*)"\s*\]/g;
+            const tags = pgnString.match(tagRegex) || [];
+    
+            // 2. Isolate the movetext by removing the tags from the original string.
+            const movetext = pgnString.replace(tagRegex, '').trim();
+    
+            // 3. Aggressively clean ONLY the movetext part.
+            const cleanedMovetext = movetext
+                .replace(/\{[^}]*?\}/g, '')      // Remove comments like { [%eval ...] } or simple comments
+                .replace(/\([^)]*?\)/g, '')       // Remove recursive annotation variations ( ... )
+                .replace(/\$\d+/g, '')          // Remove numeric annotation glyphs (NAGs) like $1
+                .replace(/[\r\n\t]+/g, ' ')   // Normalize all whitespace (newlines, tabs) to single spaces
+                .trim();
+    
+            // 4. Reconstruct the PGN in a standard, clean format.
+            const cleanedPgn = tags.join('\n') + '\n\n' + cleanedMovetext;
+    
+            // 5. Load the reconstructed PGN into the chess.js instance.
+            const loaded = newGame.loadPgn(cleanedPgn);
+    
+            if (!loaded) {
+                throw new Error("Invalid PGN format. The file could not be read even after extensive cleaning.");
+            }
+    
+            if (newGame.history().length === 0) {
+                throw new Error("The PGN was loaded, but it contains no moves.");
+            }
+    
+            // 6. Success: Update the application state with the new game.
             const startingFen = new Chess().fen();
             setGame(new Chess(startingFen));
             currentGameForEngine.current = new Chess(startingFen);
             setHistory(newGame.history({ verbose: true }));
             setCurrentMove(-1);
             getEvaluation(startingFen);
+    
         } catch (e) {
-            setPgnError("Invalid PGN format. Please check the pasted text.");
+            // If any step fails, catch the error and display it to the user.
+            setPgnError(e.message || "An unexpected error occurred while loading the PGN.");
             setGame(new Chess());
             setHistory([]);
             setCurrentMove(-1);
@@ -441,10 +486,35 @@ export default function App() {
             try {
                 const ratingsData = await fetchData('/ratings/current');
                 const historyData = await fetchData('/ratings/history');
+    
                 if (!Array.isArray(ratingsData) || !Array.isArray(historyData)) {
                     throw new Error("Data from API is not in the expected format.");
                 }
-                setCurrentRatings(ratingsData);
+    
+                // Calculate rating changes
+                const firstRatings = {};
+                historyData.forEach(entry => {
+                    if (!firstRatings[entry.player_name]) {
+                        firstRatings[entry.player_name] = {};
+                    }
+                    if (!firstRatings[entry.player_name][entry.category]) {
+                        firstRatings[entry.player_name][entry.category] = entry.rating;
+                    }
+                });
+    
+                const ratingsWithChanges = ratingsData.map(player => {
+                    const rapid_change = player.rapid_rating - (firstRatings[player.friend_name]?.Rapid || player.rapid_rating);
+                    const blitz_change = player.blitz_rating - (firstRatings[player.friend_name]?.Blitz || player.blitz_rating);
+                    const bullet_change = player.bullet_rating - (firstRatings[player.friend_name]?.Bullet || player.bullet_rating);
+                    return {
+                        ...player,
+                        rapid_change,
+                        blitz_change,
+                        bullet_change
+                    };
+                });
+    
+                setCurrentRatings(ratingsWithChanges);
                 setRatingHistory(historyData);
             } catch (e) {
                 setError("Could not connect to the backend API. Please ensure the 'api.py' server is running.");

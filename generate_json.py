@@ -5,7 +5,7 @@ import sys
 
 # This is the directory where your Flask API is located.
 API_DIR = "api"
-DB_FILE = "chess_tracker.db" # The name of your local SQLite database file.
+DB_FILE = "chess_ratings.db" # The name of your local SQLite database file.
 
 def export_table_to_json(table_name, query, output_filename, process_func=None):
     """

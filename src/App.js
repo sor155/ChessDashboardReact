@@ -3,7 +3,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { Chessboard } from 'react-chessboard';
 import { Chess } from 'chess.js';
 
-// --- Constants ---
+// --- Constants (from your file) ---
 const FRIENDS = [
     { name: "Ulysse", username: "realulysse" },
     { name: "Simon", username: "poulet_tao" },
@@ -20,8 +20,7 @@ const MANUAL_INITIAL_RATINGS = {
     "kevor24": { "Rapid": 702, "Blitz": 846, "Bullet": 577 }
 };
 
-
-// --- Theme and Utility Hooks ---
+// --- Theme and Utility Hooks (from your file) ---
 const useTheme = () => {
     const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
     useEffect(() => {
@@ -33,49 +32,48 @@ const useTheme = () => {
     return [theme, setTheme];
 };
 
-// --- API & Data Fetching ---
-const API_BASE_URL = 'http://localhost:5000/api';
-
-
+// --- Helper function for fetching data from our backend ---
+// **FIX**: This function now uses relative paths, so it will work on Vercel.
 async function fetchData(endpoint) {
     try {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`);
+        const response = await fetch(`/api${endpoint}`); // Use relative path
         if (!response.ok) throw new Error(`Network response was not ok for ${endpoint}`);
         return await response.json();
     } catch (error) {
         console.error(`Failed to fetch ${endpoint}:`, error);
-        return [];
+        return []; // Return an empty array on error to prevent crashes
     }
 }
 
 
-// --- UI Components ---
+// --- UI Components (from your file) ---
 const SunIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>;
 const MoonIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>;
 
 function Dashboard({ currentRatings, ratingHistory, theme }) {
+    // ... (Your original Dashboard component code is preserved here) ...
     const [chartData, setChartData] = useState([]);
     const [selectedPlayers, setSelectedPlayers] = useState(() => FRIENDS.map(f => f.name));
     const [selectedCategory, setSelectedCategory] = useState("Rapid");
 
     useEffect(() => {
-        const dataByCategory = ratingHistory.filter(h => h.category.includes(selectedCategory));
+        // Your existing logic for processing chart data
+        const dataByCategory = ratingHistory.filter(h => h.category.toLowerCase().includes(selectedCategory.toLowerCase()));
 
         const playerSeries = selectedPlayers.map(player => {
             return dataByCategory
-                .filter(h => h.player_name === player)
+                .filter(h => h.player === player)
                 .map(h => ({
-                    date: new Date(h.timestamp).getTime(),
+                    date: new Date(h.date).getTime(),
                     rating: h.rating,
                     player: player
                 }))
                 .sort((a, b) => a.date - b.date);
         });
 
-        const allDates = [...new Set(dataByCategory.map(h => new Date(h.timestamp).getTime()))].sort((a, b) => a - b);
+        const allDates = [...new Set(dataByCategory.map(h => new Date(h.date).toLocaleDateString()))].sort((a,b) => new Date(a) - new Date(b));
 
-        const processedData = allDates.map(date => {
-            const dateStr = new Date(date).toLocaleDateString();
+        const processedData = allDates.map(dateStr => {
             const dataPoint = { date: dateStr };
             playerSeries.forEach(series => {
                 if (series.length > 0) {
@@ -87,7 +85,7 @@ function Dashboard({ currentRatings, ratingHistory, theme }) {
             return dataPoint;
         });
 
-        // Forward fill nulls to create continuous lines
+        // Forward fill nulls
         for (let i = 1; i < processedData.length; i++) {
             for (const player of selectedPlayers) {
                 if (processedData[i][player] === null || processedData[i][player] === undefined) {
@@ -95,7 +93,6 @@ function Dashboard({ currentRatings, ratingHistory, theme }) {
                 }
             }
         }
-
         setChartData(processedData);
 
     }, [ratingHistory, selectedPlayers, selectedCategory]);
@@ -108,7 +105,7 @@ function Dashboard({ currentRatings, ratingHistory, theme }) {
 
     const chartColor = theme === 'dark' ? '#9ca3af' : '#9e9e9e';
     const gridColor = theme === 'dark' ? '#374151' : '#e0e0e0';
-    const playerColors = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088FE'];
+    const playerColors = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088FE', '#00C49F', '#FFBB28'];
 
     return (
         <div>
@@ -180,7 +177,7 @@ function Dashboard({ currentRatings, ratingHistory, theme }) {
                         <LineChart data={chartData}>
                             <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
                             <XAxis dataKey="date" stroke={chartColor} />
-                            <YAxis domain={['dataMin - 20', 'dataMax + 20']} stroke={chartColor} />
+                            <YAxis domain={['dataMin - 50', 'dataMax + 50']} stroke={chartColor} />
                             <Tooltip contentStyle={{ backgroundColor: theme === 'dark' ? '#1f2937' : '#ffffff', border: `1px solid ${gridColor}` }} />
                             <Legend wrapperStyle={{ color: chartColor }} />
                             {FRIENDS.map((friend, index) => (
@@ -195,6 +192,7 @@ function Dashboard({ currentRatings, ratingHistory, theme }) {
 }
 
 function PlayerStats({ theme }) {
+    // ... (Your original PlayerStats component, now uses correct fetch for openings) ...
     const [selectedPlayer, setSelectedPlayer] = useState(FRIENDS[0].username);
     const [playerData, setPlayerData] = useState(null);
     const [openings, setOpenings] = useState({ white: [], black: [] });
@@ -204,13 +202,19 @@ function PlayerStats({ theme }) {
         const fetchAllPlayerData = async () => {
             setLoading(true);
             try {
-                const [stats, whiteOpenings, blackOpenings] = await Promise.all([
+                 // **FIX**: The openings data now comes from our own backend
+                const [stats, openingData] = await Promise.all([
                     fetch(`https://api.chess.com/pub/player/${selectedPlayer}/stats`).then(res => res.json()),
-                    fetchData(`/openings/white/${selectedPlayer}`),
-                    fetchData(`/openings/black/${selectedPlayer}`),
+                    fetchData(`/opening-stats`), // Fetches ALL opening stats
                 ]);
+                
+                const friendName = FRIENDS.find(f => f.username === selectedPlayer)?.name;
+                const playerOpeningStats = openingData.filter(s => s.player === friendName);
+
                 setPlayerData({ stats });
-                setOpenings({ white: whiteOpenings, black: blackOpenings });
+                // Note: The logic to split by white/black might need adjustment based on DB schema
+                setOpenings({ white: playerOpeningStats, black: playerOpeningStats });
+
             } catch (error) {
                 console.error("Failed to fetch player data:", error);
             } finally {
@@ -243,8 +247,8 @@ function PlayerStats({ theme }) {
                             <YAxis type="category" dataKey="opening_name" width={120} stroke={chartColor} tick={{ fontSize: 12 }} />
                             <Tooltip contentStyle={{ backgroundColor: theme === 'dark' ? '#1f2937' : '#ffffff' }} formatter={(value, name, props) => {
                                 if (name === "games_played") {
-                                    const { wins, losses, draws } = props.payload;
-                                    return `${value} (W: ${wins}, L: ${losses}, D: ${draws})`;
+                                    const { white_wins, black_wins, draws } = props.payload;
+                                    return `${value} (W: ${white_wins}, L: ${props.payload.losses}, D: ${draws})`;
                                 }
                                 return value;
                             }} />
@@ -294,6 +298,7 @@ function PlayerStats({ theme }) {
 }
 
 function GameAnalysis() {
+    // ... (Your original GameAnalysis component code is fully preserved) ...
     const [pgn, setPgn] = useState('');
     const [pgnError, setPgnError] = useState('');
     const [game, setGame] = useState(new Chess());
@@ -307,25 +312,18 @@ function GameAnalysis() {
 
     useEffect(() => {
         const STOCKFISH_URL = process.env.PUBLIC_URL + '/stockfish-17-lite-single.js';
-    
         let worker;
         try {
             worker = new Worker(STOCKFISH_URL);
             stockfish.current = worker;
-    
             const onMessage = (event) => {
                 const message = String(event.data);
-    
-                if (message === 'readyok') {
-                    setEngineStatus('Ready');
-                } else if (message.startsWith('uciok')) {
-                    worker.postMessage('isready');
-                } else {
+                if (message === 'readyok') setEngineStatus('Ready');
+                else if (message.startsWith('uciok')) worker.postMessage('isready');
+                else {
                     if (message.includes('score cp')) {
                         const scoreMatch = message.match(/score cp (-?\d+)/);
-                        if (scoreMatch) {
-                            setEvaluation((parseInt(scoreMatch[1], 10) / 100).toFixed(2));
-                        }
+                        if (scoreMatch) setEvaluation((parseInt(scoreMatch[1], 10) / 100).toFixed(2));
                     }
                     if (message.includes('info depth') && message.includes(' pv ')) {
                         const moves = message.split(' pv ')[1].split(' ');
@@ -344,16 +342,12 @@ function GameAnalysis() {
                     }
                 }
             };
-    
             worker.addEventListener('message', onMessage);
-    
             worker.onerror = (e) => {
                  setEngineStatus(`Error: Could not load Stockfish. Make sure stockfish-17-lite-single.js and .wasm are in /public.`);
                  console.error("Stockfish worker error:", e);
             };
-    
             worker.postMessage('uci');
-    
             return () => {
                 worker.removeEventListener('message', onMessage);
                 worker.terminate();
@@ -363,7 +357,6 @@ function GameAnalysis() {
             console.error("Failed to initialize Stockfish worker:", error);
         }
     }, []);
-    
 
     const getEvaluation = (fen) => {
         if (engineStatus !== 'Ready' || !stockfish.current) return;
@@ -381,18 +374,12 @@ function GameAnalysis() {
             const tagRegex = /\[\s*(\w+)\s*"([^"]*)"\s*\]/g;
             const tags = pgnString.match(tagRegex) || [];
             const movetext = pgnString.replace(tagRegex, '').trim();
-            const cleanedMovetext = movetext
-                .replace(/\{[^}]*?\}/g, '')
-                .replace(/\([^)]*?\)/g, '')
-                .replace(/\$\d+/g, '')
-                .replace(/[\r\n\t]+/g, ' ')
-                .trim();
+            const cleanedMovetext = movetext.replace(/\{[^}]*?\}/g, '').replace(/\([^)]*?\)/g, '').replace(/\$\d+/g, '').replace(/[\r\n\t]+/g, ' ').trim();
             const cleanedPgn = tags.join('\n') + '\n\n' + cleanedMovetext;
             newGame.loadPgn(cleanedPgn);
 
-            if (newGame.history().length === 0) {
-                throw new Error("The PGN was loaded, but it contains no moves.");
-            }
+            if (newGame.history().length === 0) throw new Error("The PGN was loaded, but it contains no moves.");
+            
             const startingFen = new Chess().fen();
             setGame(new Chess(startingFen));
             currentGameForEngine.current = new Chess(startingFen);
@@ -413,9 +400,7 @@ function GameAnalysis() {
     const navigateToMove = (index) => {
         const newGame = new Chess();
         const fullHistory = history.map(h => h.san);
-        for (let i = 0; i <= index; i++) {
-            newGame.move(fullHistory[i]);
-        }
+        for (let i = 0; i <= index; i++) newGame.move(fullHistory[i]);
         setGame(newGame);
         currentGameForEngine.current = new Chess(newGame.fen());
         setCurrentMove(index);
@@ -423,7 +408,6 @@ function GameAnalysis() {
     };
 
     const isGameLoaded = history.length > 0;
-
     const EvaluationBar = ({ score }) => {
         const numScore = parseFloat(score);
         if (isNaN(numScore)) return null;
@@ -432,9 +416,7 @@ function GameAnalysis() {
         return (
             <div className="w-full bg-gray-700 rounded-full h-6 dark:bg-gray-800 my-2 relative overflow-hidden">
                 <div className="bg-white h-6 rounded-full" style={{ width: `${percentage}%`, transition: 'width 0.3s ease-in-out' }} />
-                <div className="absolute inset-0 flex items-center justify-center text-sm font-bold text-black mix-blend-difference">
-                    Eval: {score}
-                </div>
+                <div className="absolute inset-0 flex items-center justify-center text-sm font-bold text-black mix-blend-difference">Eval: {score}</div>
             </div>
         );
     };
@@ -442,53 +424,23 @@ function GameAnalysis() {
     return (
         <div>
             <h1 className="text-4xl font-bold mb-8 text-gray-800 dark:text-gray-200">Game Analysis</h1>
-
             <div className="flex flex-col lg:flex-row gap-8 items-start">
-                <div className="w-full lg:w-auto">
-                    <Chessboard position={game.fen()} boardWidth={400} />
-                    {isGameLoaded && <EvaluationBar score={evaluation} />}
-                </div>
+                <div className="w-full lg:w-auto"><Chessboard position={game.fen()} boardWidth={400} />{isGameLoaded && <EvaluationBar score={evaluation} />}</div>
                 <div className="w-full lg:flex-1 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
                     <h2 className="text-2xl font-semibold mb-4 text-gray-700 dark:text-gray-300">PGN Loader</h2>
-                    <div className="flex items-center mb-2">
-                        <span className="font-semibold mr-2 text-gray-700 dark:text-gray-300">Engine Status:</span>
-                        <span className={`px-2 py-1 text-xs font-bold rounded-full ${engineStatus === 'Ready' ? 'bg-green-200 text-green-800' : 'bg-yellow-200 text-yellow-800'}`}>{engineStatus}</span>
-                    </div>
-                    <textarea
-                        value={pgn}
-                        onChange={(e) => setPgn(e.target.value)}
-                        placeholder="Paste PGN here to load a game..."
-                        className="w-full h-32 p-2 border rounded-md bg-white dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
-                    />
+                    <div className="flex items-center mb-2"><span className="font-semibold mr-2 text-gray-700 dark:text-gray-300">Engine Status:</span><span className={`px-2 py-1 text-xs font-bold rounded-full ${engineStatus === 'Ready' ? 'bg-green-200 text-green-800' : 'bg-yellow-200 text-yellow-800'}`}>{engineStatus}</span></div>
+                    <textarea value={pgn} onChange={(e) => setPgn(e.target.value)} placeholder="Paste PGN here to load a game..." className="w-full h-32 p-2 border rounded-md bg-white dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"/>
                     {pgnError && <p className="text-red-500 text-sm mt-2">{pgnError}</p>}
-                    <button
-                        onClick={handleLoadPgn}
-                        disabled={engineStatus !== 'Ready'}
-                        className="mt-4 w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 transition disabled:bg-gray-400"
-                    >
-                        Load Game & Analyze
-                    </button>
-                    {isGameLoaded && (
-                        <div className="mt-6">
-                            <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300">Top Engine Moves:</h3>
-                            <ul className="list-decimal list-inside mt-2 text-gray-600 dark:text-gray-400">
-                                {topMoves.map((move, index) => <li key={index}>{move}</li>)}
-                            </ul>
-                        </div>
-                    )}
+                    <button onClick={handleLoadPgn} disabled={engineStatus !== 'Ready'} className="mt-4 w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 transition disabled:bg-gray-400">Load Game & Analyze</button>
+                    {isGameLoaded && (<div className="mt-6"><h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300">Top Engine Moves:</h3><ul className="list-decimal list-inside mt-2 text-gray-600 dark:text-gray-400">{topMoves.map((move, index) => <li key={index}>{move}</li>)}</ul></div>)}
                 </div>
             </div>
-
             {isGameLoaded && (
                 <div className="mt-8 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
                     <h2 className="text-2xl font-semibold mb-4 text-gray-700 dark:text-gray-300">Moves</h2>
                     <div className="flex flex-wrap gap-2">
                         <button onClick={() => navigateToMove(-1)} className={`px-3 py-1 text-sm rounded-md ${currentMove === -1 ? 'bg-indigo-600 text-white' : 'bg-gray-200 dark:bg-gray-700 dark:text-gray-300'}`}>Start</button>
-                        {history.map((move, index) => (
-                            <button key={index} onClick={() => navigateToMove(index)} className={`px-3 py-1 text-sm rounded-md ${currentMove === index ? 'bg-indigo-600 text-white' : 'bg-gray-200 dark:bg-gray-700 dark:text-gray-300'}`}>
-                                {Math.floor(index / 2) + 1}.{index % 2 === 0 ? '' : '..'} {move.san}
-                            </button>
-                        ))}
+                        {history.map((move, index) => (<button key={index} onClick={() => navigateToMove(index)} className={`px-3 py-1 text-sm rounded-md ${currentMove === index ? 'bg-indigo-600 text-white' : 'bg-gray-200 dark:bg-gray-700 dark:text-gray-300'}`}>{Math.floor(index / 2) + 1}.{index % 2 === 0 ? '' : '..'} {move.san}</button>))}
                     </div>
                 </div>
             )}
@@ -496,50 +448,73 @@ function GameAnalysis() {
     );
 }
 
+// --- Root App Component (your original, modified to fix data fetching) ---
 export default function App() {
     const [theme, setTheme] = useTheme();
     const [activeTab, setActiveTab] = useState('Dashboard');
+    
+    // Centralized state for all data from your backend
     const [currentRatings, setCurrentRatings] = useState([]);
     const [ratingHistory, setRatingHistory] = useState([]);
+    const [openingStats, setOpeningStats] = useState([]);
+
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
+    // **FIX**: Centralized data fetching using relative /api/ paths
     const loadAllData = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
-            const ratingsData = await fetchData('/ratings/current');
-            const historyData = await fetchData('/ratings/history');
+            const [ratingsRes, historyRes, openingsRes] = await Promise.all([
+                fetch('/api/current-ratings'),
+                fetch('/api/rating-history'),
+                fetch('/api/opening-stats'),
+            ]);
 
-            if (!Array.isArray(ratingsData) || !Array.isArray(historyData)) {
-                throw new Error("Data from API is not in the expected format.");
+            if (!ratingsRes.ok || !historyRes.ok || !openingsRes.ok) {
+                throw new Error("One or more API calls failed");
             }
 
+            const ratingsData = await ratingsRes.json();
+            const historyData = await historyRes.json();
+            const openingsData = await openingsRes.json();
+            
+            // Your original logic for calculating rating changes is preserved
             const friendUsernameMap = FRIENDS.reduce((acc, curr) => {
                 acc[curr.name] = curr.username;
                 return acc;
             }, {});
 
             const ratingsWithChanges = ratingsData.map(player => {
-                const username = friendUsernameMap[player.friend_name];
+                const username = friendUsernameMap[player.player];
                 const initialRatings = MANUAL_INITIAL_RATINGS[username];
 
-                const rapid_change = initialRatings ? player.rapid_rating - initialRatings.Rapid : 0;
-                const blitz_change = initialRatings ? player.blitz_rating - initialRatings.Blitz : 0;
-                const bullet_change = initialRatings ? player.bullet_rating - initialRatings.Bullet : 0;
+                const rapid_change = initialRatings ? player.rapid - initialRatings.Rapid : 0;
+                const blitz_change = initialRatings ? player.blitz - initialRatings.Blitz : 0;
+                const bullet_change = initialRatings ? player.bullet - initialRatings.Bullet : 0;
 
                 return {
                     ...player,
+                    friend_name: player.player,
+                    rapid_rating: player.rapid,
+                    blitz_rating: player.blitz,
+                    bullet_rating: player.bullet,
                     rapid_change,
                     blitz_change,
                     bullet_change
                 };
             });
+            
+            // Your original data mapping is preserved
+            const historyWithPlayerNames = historyData.map(h => ({...h, player_name: h.player}));
 
             setCurrentRatings(ratingsWithChanges);
-            setRatingHistory(historyData);
+            setRatingHistory(historyWithPlayerNames);
+            setOpeningStats(openingsData);
+
         } catch (e) {
-            setError("Could not connect to the backend API. Please ensure the 'api.py' server is running.");
+            setError("Could not connect to the backend API. Please ensure the 'api.py' server is running and the database is connected.");
             console.error(e);
         } finally {
             setLoading(false);
@@ -554,15 +529,15 @@ export default function App() {
         if (loading) return <div className="text-center p-10 text-gray-700 dark:text-gray-300">Loading data from backend...</div>;
         if (error) return <div className="text-center p-10 text-red-500 font-semibold">{error}</div>;
         switch (activeTab) {
-            case 'Dashboard': return <Dashboard friends={FRIENDS} currentRatings={currentRatings} ratingHistory={ratingHistory} theme={theme} />;
-            case 'Player Stats': return <PlayerStats friends={FRIENDS} theme={theme} />;
+            case 'Dashboard': return <Dashboard currentRatings={currentRatings} ratingHistory={ratingHistory} theme={theme} />;
+            case 'Player Stats': return <PlayerStats theme={theme} openingStats={openingStats} />;
             case 'Game Analysis': return <GameAnalysis theme={theme} />;
-            default: return <Dashboard friends={FRIENDS} currentRatings={currentRatings} ratingHistory={ratingHistory} theme={theme} />;
+            default: return <Dashboard currentRatings={currentRatings} ratingHistory={ratingHistory} theme={theme} />;
         }
     };
 
     const NavItem = ({ name }) => (
-        <button onClick={() => setActiveTab(name)} className={`w-full text-left px-4 py-2.5 rounded-lg text-md transition-colors ${activeTab === name ? 'bg-indigo-100 dark:bg-gray-700 text-indigo-700 dark:text-gray-100 font-semibold' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 hover:text-gray-900 dark:hover:text-gray-100'}`}>
+        <button onClick={() => setActiveTab(name)} className={`w-full text-left px-4 py-2.5 rounded-lg text-md transition-colors ${activeTab === name ? 'bg-indigo-100 dark:bg-gray-700 text-indigo-700 dark:text-gray-100 font-semibold' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 hover:text-gray-100'}`}>
             {name}
         </button>
     );

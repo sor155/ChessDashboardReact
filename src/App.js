@@ -241,13 +241,13 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis type="number" dataKey="games_played" stroke={chartColor} />
                             <YAxis type="category" dataKey="opening_name" width={120} stroke={chartColor} tick={{ fontSize: 12 }} />
-                            <Tooltip contentStyle={{ backgroundColor: theme === 'dark' ? '#1f2937' : '#ffffff' }} formatter={(value, name, props) => {
-                                if (name === "games_played") {
-                                    const { white_wins, black_wins, draws } = props.payload;
-                                    return `${value} (W: ${white_wins}, L: ${props.payload.losses}, D: ${draws})`;
-                                }
-                                return value;
-                            }} />
+                          <Tooltip contentStyle={{ backgroundColor: theme === 'dark' ? '#1f2937' : '#ffffff' }} formatter={(value, name, props) => {
+    if (name === "games_played") {
+        const { white_wins, draws } = props.payload; // "black_wins" has been removed
+        return `${value} (W: ${white_wins}, L: ${props.payload.losses}, D: ${draws})`;
+    }
+    return value;
+}} />
                             <Bar dataKey="games_played" fill={color} />
                         </BarChart>
                     </ResponsiveContainer>

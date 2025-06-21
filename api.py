@@ -8,30 +8,33 @@ import os
 
 # Initialize Flask App
 app = Flask(__name__)
-
-# Enable CORS to allow your React frontend to make requests to this Python backend.
 CORS(app)
 
 # --- Database Helper Function ---
 def get_db_connection():
     """
     Creates a connection to the SQLite database.
-    This now correctly connects to 'chess_ratings.db'.
+    This version simplifies the path and adds logging for debugging on Vercel.
     """
-    # The database file that holds the 'openings' table.
     DATABASE_FILENAME = 'chess_ratings.db'
-
-    # This pathing works in the Vercel environment where 'api.py' is in an 'api/' directory
-    # and the database is at the root.
-    db_path = os.path.join(os.path.dirname(__file__), '..', DATABASE_FILENAME)
-
-    # A fallback for local development where api.py might be in the root.
-    if not os.path.exists(db_path):
-        db_path = DATABASE_FILENAME
     
+    # In Vercel's serverless environment, all project files are placed in '/var/task/'.
+    # So, the script and the database should be in the same directory.
+    db_path = os.path.join('/var/task/', DATABASE_FILENAME)
+    
+    # Log the path we are trying to use. This is crucial for debugging.
+    print(f"Attempting to connect to database at: {db_path}")
+
     if not os.path.exists(db_path):
-        # This error will be visible in the Vercel function logs if the DB is missing.
-        raise sqlite3.OperationalError(f"Database '{DATABASE_FILENAME}' not found at expected path: {db_path}")
+        # Log an error if the file doesn't exist at the expected path.
+        print(f"ERROR: Database file not found at {db_path}. Please ensure '{DATABASE_FILENAME}' is at the root of your project.")
+        # As a fallback for local testing, check the current script's directory.
+        local_path = os.path.join(os.path.dirname(__file__), DATABASE_FILENAME)
+        if os.path.exists(local_path):
+             print(f"Found database locally at: {local_path}")
+             db_path = local_path
+        else:
+             raise sqlite3.OperationalError(f"Database not found at Vercel path or local path.")
 
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
@@ -51,26 +54,30 @@ def get_eco():
             return jsonify({"error": "FEN string is required."}), 400
 
         conn = get_db_connection()
+        print("Database connection successful.")
         cursor = conn.cursor()
         
         # Query the 'openings' table for the given FEN
+        print(f"Querying for FEN: {fen}")
         cursor.execute('SELECT eco, name FROM openings WHERE fen = ?', (fen,))
         opening = cursor.fetchone()
         conn.close()
 
         if opening:
+            print(f"Opening found: {opening['eco']} - {opening['name']}")
             return jsonify({
                 "eco": opening['eco'],
                 "name": opening['name']
             })
         else:
+            print("No opening found for this FEN.")
             return jsonify({
                 "eco": "N/A",
                 "name": "No opening found for this position."
             })
     except sqlite3.OperationalError as e:
         print(f"DATABASE ERROR in /api/get-eco: {e}")
-        return jsonify({"error": "Database connection failed. Please ensure chess_ratings.db is included in the deployment."}), 500
+        return jsonify({"error": "Database connection failed. Check Vercel logs for path details."}), 500
     except Exception as e:
         print(f"GENERAL ERROR in /api/get-eco: {e}")
         return jsonify({"error": "An internal server error occurred."}), 500
@@ -87,7 +94,6 @@ def get_eval():
         if not fen:
             return jsonify({"error": "FEN string is required."}), 400
             
-        # Placeholder evaluation logic
         evaluation = {
             "score": "N/A",
             "bestMove": "N/A"
@@ -98,7 +104,6 @@ def get_eval():
         print(f"Error in /api/get-eval: {e}")
         return jsonify({"error": "An internal server error occurred."}), 500
 
-# A simple root route to confirm the API is running.
 @app.route('/api/status', methods=['GET'])
 def status():
     """A simple route to check if the API is up and running."""

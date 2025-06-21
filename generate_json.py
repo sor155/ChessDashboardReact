@@ -1,8 +1,3 @@
-This is the final and correct setup for your project. It uses a stable API that reads from local JSON files, which are updated automatically by a GitHub Actions workflow.
-
-Step 1: Create/Update generate_json.py
-In the root directory of your project, ensure you have a file named generate_json.py with the following content. This version uses the exact column names we discovered from your database schema.
-
 import sqlite3
 import json
 import os
@@ -53,7 +48,8 @@ def export_table_to_json(query, output_filename, process_func=None):
 
 def process_openings_stats(data):
     """
-    Processes the opening stats to match the frontend's expectations.
+    Processes the opening stats to match the frontend's expectations by adding
+    a 'player' field based on the username.
     """
     for row in data:
         username = row.get("player_username")
@@ -92,16 +88,19 @@ if __name__ == "__main__":
         SELECT
           player_username,
           opening_name,
+          color,  -- Added 'color' to select to distinguish White and Black games
           SUM(games_played) AS games_played,
-          SUM(CASE WHEN color = 'white' THEN wins ELSE 0 END) AS white_wins,
-          SUM(CASE WHEN color = 'black' THEN wins ELSE 0 END) AS black_wins,
-          SUM(draws) AS draws,
-          SUM(losses) AS losses
+          SUM(wins) AS wins,   -- Sum wins directly, as 'color' is now a grouping key
+          SUM(losses) AS losses,
+          SUM(draws) AS draws
         FROM
           opening_stats
         GROUP BY
           player_username,
-          opening_name
+          opening_name,
+          color -- Group by 'color' to get separate entries for White and Black
+        ORDER BY
+          player_username, games_played DESC
         """,
         "opening-stats.json",
         process_func=process_openings_stats

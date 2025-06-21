@@ -5,7 +5,7 @@ import sys
 
 # This is the directory where your Flask API is located.
 API_DIR = "api"
-# **FIX**: This now correctly matches the DB name in your update script.
+# This now correctly matches the DB name in your update script.
 DB_FILE = "chess_ratings.db" 
 
 def export_table_to_json(table_name, query, output_filename, process_func=None):
@@ -74,16 +74,14 @@ if __name__ == "__main__":
     
     export_table_to_json(
         "rating_history",
-        # **FIX**: Selects from the 'timestamp' column and renames it to 'date'
         "SELECT player_name AS player, category, rating, timestamp AS date FROM rating_history",
         "rating-history.json"
     )
 
     export_table_to_json(
         "opening_stats",
-        # Assuming the column name is 'player' based on frontend code.
-        # If this fails, we will need to see the script that creates this table.
-        "SELECT player_name AS player, opening_name, games_played, white_wins, black_wins, draws FROM opening_stats",
+        # **FIX**: The column is named 'player' in this table, so no rename is needed.
+        "SELECT player, opening_name, games_played, white_wins, black_wins, draws FROM opening_stats",
         "opening-stats.json",
         process_func=process_openings_stats
     )

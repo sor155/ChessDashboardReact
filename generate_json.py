@@ -83,7 +83,7 @@ if __name__ == "__main__":
         "opening_stats",
         # Assuming the column name is 'player' based on frontend code.
         # If this fails, we will need to see the script that creates this table.
-        "SELECT player, opening_name, games_played, white_wins, black_wins, draws FROM opening_stats",
+        "SELECT player_name AS player, opening_name, games_played, white_wins, black_wins, draws FROM opening_stats",
         "opening-stats.json",
         process_func=process_openings_stats
     )

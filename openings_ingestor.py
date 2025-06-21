@@ -7,7 +7,7 @@ import json
 import os
 
 DATABASE_PATH = 'chess_ratings.db'
-# List of your local ECO files
+# List of your local ECO json files
 ECO_FILES = ['ecoA.json', 'ecoB.json', 'ecoC.json', 'ecoD.json', 'ecoE.json']
 
 FRIENDS = [
@@ -32,11 +32,12 @@ def load_eco_data():
             try:
                 with open(filename, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                    for opening in data:
-                        if 'fen' in opening:
+                    # Corrected loop: iterate over items (fen_key, opening_details)
+                    for fen_string, opening_details in data.items():
+                        if 'name' in opening_details:
                             # Use only the board position part of the FEN for the key
-                            fen_key = opening['fen'].split(' ')[0]
-                            eco_fen_map[fen_key] = opening['name']
+                            fen_key_prefix = fen_string.split(' ')[0]
+                            eco_fen_map[fen_key_prefix] = opening_details['name']
                 print(f"  - Successfully loaded {filename}")
             except (json.JSONDecodeError, IOError) as e:
                 print(f"Error loading {filename}: {e}")
@@ -174,13 +175,13 @@ def update_opening_stats():
                     cursor.execute('''
                         INSERT OR REPLACE INTO opening_stats (player_username, opening_name, color, games_played, wins, losses, draws)
                         VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ''', (username, opening, 'white', stats['games'], stats['wins'], stats['losses'], stats['draws']))
+                    ''', (username, opening, 'white', stats['games'], stats['losses'], stats['wins'], stats['draws'])) # Corrected column order: wins, losses, draws
 
                 for opening, stats in black_openings.items():
                     cursor.execute('''
                         INSERT OR REPLACE INTO opening_stats (player_username, opening_name, color, games_played, wins, losses, draws)
                         VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ''', (username, opening, 'black', stats['games'], stats['wins'], stats['losses'], stats['draws']))
+                    ''', (username, opening, 'black', stats['games'], stats['losses'], stats['wins'], stats['draws'])) # Corrected column order: wins, losses, draws
                 
                 conn.commit()
                 print(f"Finished processing for {username}")

@@ -43,8 +43,24 @@ def get_rating_history():
          return jsonify({"error": "Could not retrieve rating history."}), 500
     return jsonify(history)
 
+@app.route('/api/openings/<color>/<username>')
+def get_openings(color, username):
+    """API endpoint to get opening stats for a player."""
+    if color not in ['white', 'black']:
+        return jsonify({"error": "Invalid color specified"}), 400
+        
+    query = """
+        SELECT opening_name, games_played, wins, losses, draws
+        FROM opening_stats
+        WHERE player_username = ? AND color = ?
+        ORDER BY games_played DESC
+        LIMIT 5
+    """
+    openings = query_db(query, (username, color))
+    if openings is None:
+        return jsonify({"error": "Could not retrieve opening stats."}), 500
+    return jsonify(openings)
 
 if __name__ == '__main__':
     # Runs the API server on http://localhost:5000
     app.run(debug=True, port=5000)
-

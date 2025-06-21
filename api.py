@@ -5,58 +5,59 @@ import traceback
 import libsql_client
 from datetime import datetime
 
-# Initialize Flask App
+# --- Global Database Client ---
+# We will initialize this once and reuse it across requests.
+db_client = None
+
+def init_db_client():
+    """
+    Initializes the global database client. This function is called once
+    when the server starts.
+    """
+    global db_client
+    if db_client is not None:
+        return # Already initialized
+
+    print("--- Initializing global Turso DB client ---")
+    try:
+        url = os.environ.get("TURSO_URL") or os.environ.get("TURSO_DATABASE_URL")
+        auth_token = os.environ.get("TURSO_AUTH_TOKEN")
+
+        if not url or not auth_token:
+            raise Exception("FATAL: Database credentials (TURSO_URL or TURSO_AUTH_TOKEN) not found in environment variables.")
+
+        if url.startswith("libsql://"):
+            url = "https" + url[6:]
+        
+        db_client = libsql_client.create_client(url=url, auth_token=auth_token)
+        print("--- Global Turso DB client INITIALIZED successfully. ---")
+    except Exception as e:
+        db_client = None # Ensure client is None on failure
+        print(f"!!! FATAL ERROR during DB client initialization: {e}")
+        traceback.print_exc()
+
+# --- Initialize Flask App and DB Client ---
 app = Flask(__name__)
 CORS(app)
+init_db_client() # Initialize the client when the app starts
 
-# --- Turso Database Helper Function ---
-def get_db_connection():
-    """
-    Creates a connection to the remote Turso database using environment variables
-    set by the Vercel integration.
-    """
-    url = os.environ.get("TURSO_URL") or os.environ.get("TURSO_DATABASE_URL")
-    auth_token = os.environ.get("TURSO_AUTH_TOKEN")
-
-    if not url or not auth_token:
-        print("FATAL ERROR: Database credentials not found in environment variables.")
-        raise Exception("Database credentials not found in environment variables.")
-
-    # Force HTTPS for reliability in some environments
-    if url.startswith("libsql://"):
-        url = "https" + url[6:]
-
-    print(f"Connecting to Turso with URL: {url}")
-    return libsql_client.create_client(url=url, auth_token=auth_token)
+# --- Helper to convert Row to Dict ---
+def rows_to_dicts(rs):
+    """Converts a ResultSet object to a list of dictionaries."""
+    columns = [col for col in rs.columns]
+    return [dict(zip(columns, row)) for row in rs.rows]
 
 # --- API Endpoints ---
 
 @app.route('/api/current-ratings', methods=['GET'])
 def get_current_ratings():
-    """
-    Fetches the latest rating for each player from the 'current_ratings' table.
-    """
     print("\n--- /api/current-ratings endpoint triggered ---")
+    if db_client is None:
+        return jsonify({"error": "Database client is not initialized."}), 500
     try:
-        client = get_db_connection()
-        rs = client.execute("SELECT player, rapid, blitz, bullet FROM current_ratings")
-        
-        columns = rs.columns
-        ratings = []
-        for row in rs.rows:
-            try:
-                row_dict = dict(zip(columns, row))
-                ratings.append({
-                    'player': str(row_dict.get('player')),
-                    'rapid': int(row_dict.get('rapid') or 0),
-                    'blitz': int(row_dict.get('blitz') or 0),
-                    'bullet': int(row_dict.get('bullet') or 0),
-                })
-            except (ValueError, TypeError) as row_e:
-                print(f"!! SKIPPING BAD ROW in current-ratings: {row}. Error: {row_e}")
-                continue
-            
-        print(f"Successfully fetched and processed {len(ratings)} current ratings.")
+        rs = db_client.execute("SELECT player, rapid, blitz, bullet FROM current_ratings")
+        ratings = rows_to_dicts(rs)
+        print(f"Successfully fetched {len(ratings)} current ratings.")
         return jsonify(ratings)
     except Exception as e:
         print(f"!!! UNHANDLED EXCEPTION in /api/current-ratings: {e}")
@@ -65,37 +66,17 @@ def get_current_ratings():
 
 @app.route('/api/rating-history', methods=['GET'])
 def get_rating_history():
-    """
-    Fetches all rating history for the progression graph from the 'rating_history' table.
-    """
     print("\n--- /api/rating-history endpoint triggered ---")
+    if db_client is None:
+        return jsonify({"error": "Database client is not initialized."}), 500
     try:
-        client = get_db_connection()
-        rs = client.execute("SELECT player, category, rating, date FROM rating_history")
-
-        columns = rs.columns
-        history = []
-        for row in rs.rows:
-            try:
-                row_dict = dict(zip(columns, row))
-                date_val = row_dict.get('date')
-                
-                if isinstance(date_val, datetime):
-                    date_str = date_val.isoformat()
-                else:
-                    date_str = str(date_val) if date_val is not None else None
-
-                history.append({
-                    'player': str(row_dict.get('player')),
-                    'category': str(row_dict.get('category')),
-                    'rating': int(row_dict.get('rating') or 0),
-                    'date': date_str,
-                })
-            except (ValueError, TypeError) as row_e:
-                print(f"!! SKIPPING BAD ROW in rating-history: {row}. Error: {row_e}")
-                continue
-        
-        print(f"Successfully fetched and processed {len(history)} rating history records.")
+        rs = db_client.execute("SELECT player, category, rating, date FROM rating_history")
+        history = rows_to_dicts(rs)
+        # Handle date conversion safely
+        for item in history:
+            if item.get('date') and isinstance(item['date'], datetime):
+                item['date'] = item['date'].isoformat()
+        print(f"Successfully fetched {len(history)} rating history records.")
         return jsonify(history)
     except Exception as e:
         print(f"!!! UNHANDLED EXCEPTION in /api/rating-history: {e}")
@@ -104,41 +85,20 @@ def get_rating_history():
 
 @app.route('/api/opening-stats', methods=['GET'])
 def get_opening_stats():
-    """
-    **FIXED ENDPOINT**
-    Fetches player statistics and calculates the number of losses.
-    """
     print("\n--- /api/opening-stats endpoint triggered ---")
+    if db_client is None:
+        return jsonify({"error": "Database client is not initialized."}), 500
     try:
-        client = get_db_connection()
-        rs = client.execute("SELECT player, opening_name, games_played, white_wins, black_wins, draws FROM opening_stats")
-
-        columns = rs.columns
-        stats = []
-        for row in rs.rows:
-            try:
-                stat_dict = dict(zip(columns, row))
-                
-                games_played = int(stat_dict.get('games_played') or 0)
-                white_wins = int(stat_dict.get('white_wins') or 0)
-                black_wins = int(stat_dict.get('black_wins') or 0)
-                draws = int(stat_dict.get('draws') or 0)
-                
-                processed_stat = {
-                    'player': str(stat_dict.get('player')),
-                    'opening_name': str(stat_dict.get('opening_name')),
-                    'games_played': games_played,
-                    'white_wins': white_wins,
-                    'black_wins': black_wins,
-                    'draws': draws,
-                    'losses': games_played - (white_wins + black_wins + draws)
-                }
-                stats.append(processed_stat)
-            except (ValueError, TypeError) as row_e:
-                print(f"!! SKIPPING BAD ROW in opening-stats: {row}. Error: {row_e}")
-                continue
-
-        print(f"Successfully fetched and processed {len(stats)} opening stat records.")
+        rs = db_client.execute("SELECT player, opening_name, games_played, white_wins, black_wins, draws FROM opening_stats")
+        stats = rows_to_dicts(rs)
+        # Calculate losses
+        for stat in stats:
+            games_played = stat.get('games_played', 0)
+            white_wins = stat.get('white_wins', 0)
+            black_wins = stat.get('black_wins', 0)
+            draws = stat.get('draws', 0)
+            stat['losses'] = games_played - (white_wins + black_wins + draws)
+        print(f"Successfully fetched {len(stats)} opening stat records.")
         return jsonify(stats)
     except Exception as e:
         print(f"!!! UNHANDLED EXCEPTION in /api/opening-stats: {e}")
@@ -148,29 +108,21 @@ def get_opening_stats():
 
 @app.route('/api/get-eco', methods=['POST'])
 def get_eco():
-    """
-    Looks up the opening name for a given FEN from the 'opening_stats' table.
-    """
     print("\n--- /api/get-eco endpoint triggered ---")
+    if db_client is None:
+        return jsonify({"error": "Database client is not initialized."}), 500
     try:
         data = request.get_json()
         fen = data.get('fen')
         if not fen:
             return jsonify({"error": "FEN string is required."}), 400
-
-        client = get_db_connection()
         
-        print(f"Querying 'opening_stats' for FEN: {fen}")
-        rs = client.execute("SELECT eco, name FROM opening_stats WHERE fen = ?", [fen])
+        rs = db_client.execute("SELECT eco, name FROM opening_stats WHERE fen = ?", [fen])
         
         if len(rs.rows) > 0:
             opening = dict(zip(rs.columns, rs.rows[0]))
-            eco = opening.get("eco")
-            name = opening.get("name")
-            print(f"Opening found: {eco} - {name}")
-            return jsonify({"eco": eco, "name": name})
+            return jsonify({"eco": opening.get("eco"), "name": opening.get("name")})
         else:
-            print("No opening found for this FEN in opening_stats.")
             return jsonify({"eco": "N/A", "name": "No opening found."})
 
     except Exception as e:
@@ -180,6 +132,9 @@ def get_eco():
 
 @app.route('/api/status', methods=['GET'])
 def status():
-    return jsonify(message="Chess API is running and configured for Turso!")
+    if db_client:
+        return jsonify(message="Chess API is running and DB client is initialized.")
+    else:
+        return jsonify(message="Chess API is running but DB client FAILED to initialize."), 500
 
 # Vercel will run this 'app' object.

@@ -40,7 +40,9 @@ def get_current_ratings():
     try:
         client = get_db_connection()
         rs = client.execute("SELECT player, rapid, blitz, bullet FROM current_ratings")
-        ratings = [dict(row) for row in rs.rows]
+        # --- FIX ---
+        # Manually create the dictionary from columns and row values
+        ratings = [dict(zip(rs.columns, row)) for row in rs.rows]
         print(f"Successfully fetched {len(ratings)} current ratings.")
         return jsonify(ratings)
     except Exception as e:
@@ -57,7 +59,9 @@ def get_rating_history():
     try:
         client = get_db_connection()
         rs = client.execute("SELECT player, category, rating, date FROM rating_history")
-        history = [dict(row) for row in rs.rows]
+        # --- FIX ---
+        # Manually create the dictionary from columns and row values
+        history = [dict(zip(rs.columns, row)) for row in rs.rows]
         print(f"Successfully fetched {len(history)} rating history records.")
         return jsonify(history)
     except Exception as e:
@@ -74,8 +78,11 @@ def get_opening_stats():
     print("\n--- /api/opening-stats endpoint triggered ---")
     try:
         client = get_db_connection()
-        rs = client.execute("SELECT player, opening_name, games_played, white_wins, black_wins, draws FROM opening_stats")
-        stats = [dict(row) for row in rs.rows]
+        # Added 'losses' to the query to match the frontend code
+        rs = client.execute("SELECT player, opening_name, games_played, white_wins, black_wins, draws, losses FROM opening_stats")
+        # --- FIX ---
+        # Manually create the dictionary from columns and row values
+        stats = [dict(zip(rs.columns, row)) for row in rs.rows]
         print(f"Successfully fetched {len(stats)} opening stat records.")
         return jsonify(stats)
     except Exception as e:

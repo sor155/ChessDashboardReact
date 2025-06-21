@@ -3,15 +3,22 @@ import json
 import os
 import sys
 
-# This is the directory where your Flask API is located.
+# --- Configuration ---
 API_DIR = "api"
-# This now correctly matches the DB name in your update script.
 DB_FILE = "chess_ratings.db" 
 
-def export_table_to_json(table_name, query, output_filename, process_func=None):
+# This maps the Chess.com usernames in 'opening_stats' to the display names used elsewhere.
+USERNAME_TO_NAME_MAP = {
+    "realulysse": "Ulysse",
+    "poulet_tao": "Simon",
+    "adrienbourque": "Adrien",
+    "naatiry": "Alex",
+    "kevor24": "Kevin",
+}
+
+def export_table_to_json(query, output_filename, process_func=None):
     """
-    Connects to the local SQLite DB, runs a query, and saves the result as a JSON file
-    into the specified API directory.
+    Connects to the local SQLite DB, runs a query, and saves the result as a JSON file.
     """
     if not os.path.exists(DB_FILE):
         print(f"ERROR: Database file '{DB_FILE}' not found.")
@@ -40,52 +47,68 @@ def export_table_to_json(table_name, query, output_filename, process_func=None):
     print(f"Successfully created '{output_path}'.")
 
 def process_openings_stats(data):
-    """Calculates the number of losses for each opening stat record."""
-    for stat in data:
-        games_played = stat.get('games_played', 0)
-        white_wins = stat.get('white_wins', 0)
-        black_wins = stat.get('black_wins', 0)
-        draws = stat.get('draws', 0)
-        stat['losses'] = games_played - (white_wins + black_wins + draws)
+    """
+    This function processes the opening stats to match the frontend's expectations.
+    It pivots the data from being color-specific to being aggregated per opening,
+    and maps the username to the friend's display name.
+    """
+    # The frontend expects a 'player' key with the friend's name, not the username.
+    # It also expects wins to be broken down by color.
+    # The original query has already aggregated the data, so now we just rename the key.
+    for row in data:
+        username = row.get("player_username")
+        if username in USERNAME_TO_NAME_MAP:
+            row["player"] = USERNAME_TO_NAME_MAP[username]
+        else:
+            row["player"] = username # Fallback
     return data
 
 if __name__ == "__main__":
     print("--- Starting Data Export to JSON for Vercel API ---")
     
+    # Run the user's script to update the local SQLite database first.
     print("Running local database update script...")
     try:
-        # Import the script to make its functions available
         import update_tracker_sqlite
-        # Call the correct function from the imported script
         update_tracker_sqlite.run_update()
         print("Local database updated successfully.")
     except Exception as e:
         print(f"ERROR: Failed to run update_tracker_sqlite.py: {e}")
         sys.exit(1)
 
-    # Queries now use the correct column names from the database
-    # and rename them (e.g., `friend_name AS player`) for the JSON output
-    # so the frontend receives the expected field names.
+    # --- Generate JSON Files ---
+
+    # Export current ratings, renaming columns to match frontend
     export_table_to_json(
-        "current_ratings",
         "SELECT friend_name AS player, rapid_rating AS rapid, blitz_rating AS blitz, bullet_rating AS bullet FROM current_ratings",
         "current-ratings.json"
     )
     
+    # Export rating history, renaming columns to match frontend
     export_table_to_json(
-        "rating_history",
         "SELECT player_name AS player, category, rating, timestamp AS date FROM rating_history",
         "rating-history.json"
     )
 
+    # Export and process opening stats
     export_table_to_json(
-        "opening_stats",
-        # **FIX**: The column is named 'player' in this table, so no rename is needed.
-        "SELECT player, opening_name, games_played, white_wins, black_wins, draws FROM opening_stats",
+        """
+        SELECT
+          player_username,
+          opening_name,
+          SUM(games_played) AS games_played,
+          SUM(CASE WHEN color = 'white' THEN wins ELSE 0 END) AS white_wins,
+          SUM(CASE WHEN color = 'black' THEN wins ELSE 0 END) AS black_wins,
+          SUM(draws) AS draws,
+          SUM(losses) AS losses
+        FROM
+          opening_stats
+        GROUP BY
+          player_username,
+          opening_name
+        """,
         "opening-stats.json",
         process_func=process_openings_stats
     )
 
     print("\n--- Data Export Complete ---")
-    print(f"IMPORTANT: Please commit the updated 'generate_json.py' file and the new JSON files inside the '{API_DIR}/' directory to your repository and redeploy.")
-

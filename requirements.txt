@@ -1,4 +1,4 @@
 Flask==2.3.2
 Flask-CORS==4.0.0
 python-chess==1.999
-requests==2.31.0
+libsql-client==0.1.3

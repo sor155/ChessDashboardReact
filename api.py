@@ -41,7 +41,7 @@ def get_current_ratings():
         client = get_db_connection()
         rs = client.execute("SELECT player, rapid, blitz, bullet FROM current_ratings")
         # --- FIX ---
-        # Manually create the dictionary from columns and row values
+        # Manually create the dictionary from columns and row values for robustness.
         ratings = [dict(zip(rs.columns, row)) for row in rs.rows]
         print(f"Successfully fetched {len(ratings)} current ratings.")
         return jsonify(ratings)
@@ -60,7 +60,7 @@ def get_rating_history():
         client = get_db_connection()
         rs = client.execute("SELECT player, category, rating, date FROM rating_history")
         # --- FIX ---
-        # Manually create the dictionary from columns and row values
+        # Manually create the dictionary from columns and row values for robustness.
         history = [dict(zip(rs.columns, row)) for row in rs.rows]
         print(f"Successfully fetched {len(history)} rating history records.")
         return jsonify(history)
@@ -72,18 +72,33 @@ def get_rating_history():
 @app.route('/api/opening-stats', methods=['GET'])
 def get_opening_stats():
     """
-    **NEW ENDPOINT**
-    Fetches player statistics for each opening from the 'opening_stats' table.
+    **FIXED ENDPOINT**
+    Fetches player statistics and calculates the number of losses.
     """
     print("\n--- /api/opening-stats endpoint triggered ---")
     try:
         client = get_db_connection()
-        # Added 'losses' to the query to match the frontend code
-        rs = client.execute("SELECT player, opening_name, games_played, white_wins, black_wins, draws, losses FROM opening_stats")
-        # --- FIX ---
-        # Manually create the dictionary from columns and row values
-        stats = [dict(zip(rs.columns, row)) for row in rs.rows]
-        print(f"Successfully fetched {len(stats)} opening stat records.")
+        # Query without the non-existent 'losses' column
+        rs = client.execute("SELECT player, opening_name, games_played, white_wins, black_wins, draws FROM opening_stats")
+
+        columns = rs.columns
+        stats = []
+
+        # Process rows and calculate losses manually
+        for row in rs.rows:
+            stat_dict = dict(zip(columns, row))
+            
+            # Safely get values, defaulting to 0 if null
+            games_played = stat_dict.get('games_played') or 0
+            white_wins = stat_dict.get('white_wins') or 0
+            black_wins = stat_dict.get('black_wins') or 0
+            draws = stat_dict.get('draws') or 0
+            
+            # Calculate losses and add it to the dictionary
+            stat_dict['losses'] = games_played - (white_wins + black_wins + draws)
+            stats.append(stat_dict)
+
+        print(f"Successfully fetched and processed {len(stats)} opening stat records.")
         return jsonify(stats)
     except Exception as e:
         print(f"!!! UNHANDLED EXCEPTION in /api/opening-stats: {e}")
@@ -109,9 +124,9 @@ def get_eco():
         rs = client.execute("SELECT eco, name FROM opening_stats WHERE fen = ?", [fen])
         
         if len(rs.rows) > 0:
-            opening = rs.rows[0]
-            eco = opening["eco"]
-            name = opening["name"]
+            opening = dict(zip(rs.columns, rs.rows[0]))
+            eco = opening.get("eco")
+            name = opening.get("name")
             print(f"Opening found: {eco} - {name}")
             return jsonify({"eco": eco, "name": name})
         else:

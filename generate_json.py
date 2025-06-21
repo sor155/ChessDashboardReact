@@ -56,14 +56,14 @@ if __name__ == "__main__":
     try:
         # Import the script to make its functions available
         import update_tracker_sqlite
-        # **FIX**: Call the correct function from the imported script
+        # Call the correct function from the imported script
         update_tracker_sqlite.run_update()
         print("Local database updated successfully.")
     except Exception as e:
         print(f"ERROR: Failed to run update_tracker_sqlite.py: {e}")
         sys.exit(1)
 
-    # **FIX**: Queries now use the correct column names from the database
+    # Queries now use the correct column names from the database
     # and rename them (e.g., `friend_name AS player`) for the JSON output
     # so the frontend receives the expected field names.
     export_table_to_json(
@@ -74,12 +74,15 @@ if __name__ == "__main__":
     
     export_table_to_json(
         "rating_history",
-        "SELECT player_name AS player, category, rating, date FROM rating_history",
+        # **FIX**: Selects from the 'timestamp' column and renames it to 'date'
+        "SELECT player_name AS player, category, rating, timestamp AS date FROM rating_history",
         "rating-history.json"
     )
 
     export_table_to_json(
         "opening_stats",
+        # Assuming the column name is 'player' based on frontend code.
+        # If this fails, we will need to see the script that creates this table.
         "SELECT player, opening_name, games_played, white_wins, black_wins, draws FROM opening_stats",
         "opening-stats.json",
         process_func=process_openings_stats

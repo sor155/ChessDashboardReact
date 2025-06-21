@@ -40,10 +40,19 @@ def get_current_ratings():
     try:
         client = get_db_connection()
         rs = client.execute("SELECT player, rapid, blitz, bullet FROM current_ratings")
-        # --- FIX ---
-        # Manually create the dictionary from columns and row values for robustness.
-        ratings = [dict(zip(rs.columns, row)) for row in rs.rows]
-        print(f"Successfully fetched {len(ratings)} current ratings.")
+        
+        columns = rs.columns
+        ratings = []
+        for row in rs.rows:
+            row_dict = dict(zip(columns, row))
+            ratings.append({
+                'player': str(row_dict.get('player')),
+                'rapid': int(row_dict.get('rapid') or 0),
+                'blitz': int(row_dict.get('blitz') or 0),
+                'bullet': int(row_dict.get('bullet') or 0),
+            })
+            
+        print(f"Successfully fetched and processed {len(ratings)} current ratings.")
         return jsonify(ratings)
     except Exception as e:
         print(f"!!! UNHANDLED EXCEPTION in /api/current-ratings: {e}")
@@ -59,10 +68,27 @@ def get_rating_history():
     try:
         client = get_db_connection()
         rs = client.execute("SELECT player, category, rating, date FROM rating_history")
-        # --- FIX ---
-        # Manually create the dictionary from columns and row values for robustness.
-        history = [dict(zip(rs.columns, row)) for row in rs.rows]
-        print(f"Successfully fetched {len(history)} rating history records.")
+
+        columns = rs.columns
+        history = []
+        for row in rs.rows:
+            row_dict = dict(zip(columns, row))
+            date_val = row_dict.get('date')
+            
+            # Explicitly convert date/datetime objects to ISO 8601 string format
+            if isinstance(date_val, datetime):
+                date_str = date_val.isoformat()
+            else:
+                date_str = str(date_val) if date_val is not None else None
+
+            history.append({
+                'player': str(row_dict.get('player')),
+                'category': str(row_dict.get('category')),
+                'rating': int(row_dict.get('rating') or 0),
+                'date': date_str,
+            })
+        
+        print(f"Successfully fetched and processed {len(history)} rating history records.")
         return jsonify(history)
     except Exception as e:
         print(f"!!! UNHANDLED EXCEPTION in /api/rating-history: {e}")
@@ -78,25 +104,28 @@ def get_opening_stats():
     print("\n--- /api/opening-stats endpoint triggered ---")
     try:
         client = get_db_connection()
-        # Query without the non-existent 'losses' column
         rs = client.execute("SELECT player, opening_name, games_played, white_wins, black_wins, draws FROM opening_stats")
 
         columns = rs.columns
         stats = []
-
-        # Process rows and calculate losses manually
         for row in rs.rows:
             stat_dict = dict(zip(columns, row))
             
-            # Safely get values, defaulting to 0 if null
-            games_played = stat_dict.get('games_played') or 0
-            white_wins = stat_dict.get('white_wins') or 0
-            black_wins = stat_dict.get('black_wins') or 0
-            draws = stat_dict.get('draws') or 0
+            games_played = int(stat_dict.get('games_played') or 0)
+            white_wins = int(stat_dict.get('white_wins') or 0)
+            black_wins = int(stat_dict.get('black_wins') or 0)
+            draws = int(stat_dict.get('draws') or 0)
             
-            # Calculate losses and add it to the dictionary
-            stat_dict['losses'] = games_played - (white_wins + black_wins + draws)
-            stats.append(stat_dict)
+            processed_stat = {
+                'player': str(stat_dict.get('player')),
+                'opening_name': str(stat_dict.get('opening_name')),
+                'games_played': games_played,
+                'white_wins': white_wins,
+                'black_wins': black_wins,
+                'draws': draws,
+                'losses': games_played - (white_wins + black_wins + draws)
+            }
+            stats.append(processed_stat)
 
         print(f"Successfully fetched and processed {len(stats)} opening stat records.")
         return jsonify(stats)

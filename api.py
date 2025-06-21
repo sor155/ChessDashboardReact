@@ -14,14 +14,10 @@ CORS(app)
 def get_db_connection():
     """
     Creates a connection to the SQLite database.
-    Now that this script is in the /api directory, we look for the db
-    in the parent directory, which is the root of the project.
+    Since api.py is now in the root, the path is simpler.
     """
     DATABASE_FILENAME = 'chess_ratings.db'
-    
-    # Path relative to this file's location (/api/index.py)
-    # '..' goes up one directory to the project root.
-    db_path = os.path.join(os.path.dirname(__file__), '..', DATABASE_FILENAME)
+    db_path = os.path.join(os.path.dirname(__file__), DATABASE_FILENAME)
     
     print(f"Attempting to connect to database at: {db_path}")
 

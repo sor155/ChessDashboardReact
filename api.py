@@ -44,13 +44,17 @@ def get_current_ratings():
         columns = rs.columns
         ratings = []
         for row in rs.rows:
-            row_dict = dict(zip(columns, row))
-            ratings.append({
-                'player': str(row_dict.get('player')),
-                'rapid': int(row_dict.get('rapid') or 0),
-                'blitz': int(row_dict.get('blitz') or 0),
-                'bullet': int(row_dict.get('bullet') or 0),
-            })
+            try:
+                row_dict = dict(zip(columns, row))
+                ratings.append({
+                    'player': str(row_dict.get('player')),
+                    'rapid': int(row_dict.get('rapid') or 0),
+                    'blitz': int(row_dict.get('blitz') or 0),
+                    'bullet': int(row_dict.get('bullet') or 0),
+                })
+            except (ValueError, TypeError) as row_e:
+                print(f"!! SKIPPING BAD ROW in current-ratings: {row}. Error: {row_e}")
+                continue
             
         print(f"Successfully fetched and processed {len(ratings)} current ratings.")
         return jsonify(ratings)
@@ -72,21 +76,24 @@ def get_rating_history():
         columns = rs.columns
         history = []
         for row in rs.rows:
-            row_dict = dict(zip(columns, row))
-            date_val = row_dict.get('date')
-            
-            # Explicitly convert date/datetime objects to ISO 8601 string format
-            if isinstance(date_val, datetime):
-                date_str = date_val.isoformat()
-            else:
-                date_str = str(date_val) if date_val is not None else None
+            try:
+                row_dict = dict(zip(columns, row))
+                date_val = row_dict.get('date')
+                
+                if isinstance(date_val, datetime):
+                    date_str = date_val.isoformat()
+                else:
+                    date_str = str(date_val) if date_val is not None else None
 
-            history.append({
-                'player': str(row_dict.get('player')),
-                'category': str(row_dict.get('category')),
-                'rating': int(row_dict.get('rating') or 0),
-                'date': date_str,
-            })
+                history.append({
+                    'player': str(row_dict.get('player')),
+                    'category': str(row_dict.get('category')),
+                    'rating': int(row_dict.get('rating') or 0),
+                    'date': date_str,
+                })
+            except (ValueError, TypeError) as row_e:
+                print(f"!! SKIPPING BAD ROW in rating-history: {row}. Error: {row_e}")
+                continue
         
         print(f"Successfully fetched and processed {len(history)} rating history records.")
         return jsonify(history)
@@ -109,23 +116,27 @@ def get_opening_stats():
         columns = rs.columns
         stats = []
         for row in rs.rows:
-            stat_dict = dict(zip(columns, row))
-            
-            games_played = int(stat_dict.get('games_played') or 0)
-            white_wins = int(stat_dict.get('white_wins') or 0)
-            black_wins = int(stat_dict.get('black_wins') or 0)
-            draws = int(stat_dict.get('draws') or 0)
-            
-            processed_stat = {
-                'player': str(stat_dict.get('player')),
-                'opening_name': str(stat_dict.get('opening_name')),
-                'games_played': games_played,
-                'white_wins': white_wins,
-                'black_wins': black_wins,
-                'draws': draws,
-                'losses': games_played - (white_wins + black_wins + draws)
-            }
-            stats.append(processed_stat)
+            try:
+                stat_dict = dict(zip(columns, row))
+                
+                games_played = int(stat_dict.get('games_played') or 0)
+                white_wins = int(stat_dict.get('white_wins') or 0)
+                black_wins = int(stat_dict.get('black_wins') or 0)
+                draws = int(stat_dict.get('draws') or 0)
+                
+                processed_stat = {
+                    'player': str(stat_dict.get('player')),
+                    'opening_name': str(stat_dict.get('opening_name')),
+                    'games_played': games_played,
+                    'white_wins': white_wins,
+                    'black_wins': black_wins,
+                    'draws': draws,
+                    'losses': games_played - (white_wins + black_wins + draws)
+                }
+                stats.append(processed_stat)
+            except (ValueError, TypeError) as row_e:
+                print(f"!! SKIPPING BAD ROW in opening-stats: {row}. Error: {row_e}")
+                continue
 
         print(f"Successfully fetched and processed {len(stats)} opening stat records.")
         return jsonify(stats)

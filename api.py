@@ -4,22 +4,36 @@ import chess
 import chess.svg
 import sqlite3
 import json
+import os
 
 # Initialize Flask App
 app = Flask(__name__)
 
-# It's important to enable CORS to allow your React frontend
-# to make requests to this Python backend.
-# For production, you might want to restrict the origin to your frontend's Vercel URL.
+# Enable CORS to allow your React frontend to make requests to this Python backend.
 CORS(app)
 
 # --- Database Helper Function ---
 def get_db_connection():
-    """Creates a connection to the SQLite database."""
-    # Note: For Vercel deployment, the filesystem is read-only except for the /tmp directory.
-    # This means that writing to the database after deployment might not persist.
-    # For a production application, consider using a serverless database like Vercel Postgres.
-    conn = sqlite3.connect('openings.db')
+    """
+    Creates a connection to the SQLite database.
+    This now correctly connects to 'chess_ratings.db'.
+    """
+    # The database file that holds the 'openings' table.
+    DATABASE_FILENAME = 'chess_ratings.db'
+
+    # This pathing works in the Vercel environment where 'api.py' is in an 'api/' directory
+    # and the database is at the root.
+    db_path = os.path.join(os.path.dirname(__file__), '..', DATABASE_FILENAME)
+
+    # A fallback for local development where api.py might be in the root.
+    if not os.path.exists(db_path):
+        db_path = DATABASE_FILENAME
+    
+    if not os.path.exists(db_path):
+        # This error will be visible in the Vercel function logs if the DB is missing.
+        raise sqlite3.OperationalError(f"Database '{DATABASE_FILENAME}' not found at expected path: {db_path}")
+
+    conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -28,7 +42,7 @@ def get_db_connection():
 @app.route('/api/get-eco', methods=['POST'])
 def get_eco():
     """
-    Looks up the ECO code for a given FEN position.
+    Looks up the ECO code for a given FEN position from the chess_ratings.db database.
     """
     try:
         data = request.get_json()
@@ -39,7 +53,7 @@ def get_eco():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Query the database for the given FEN
+        # Query the 'openings' table for the given FEN
         cursor.execute('SELECT eco, name FROM openings WHERE fen = ?', (fen,))
         opening = cursor.fetchone()
         conn.close()
@@ -51,12 +65,14 @@ def get_eco():
             })
         else:
             return jsonify({
-                "eco": "Unknown",
+                "eco": "N/A",
                 "name": "No opening found for this position."
             })
+    except sqlite3.OperationalError as e:
+        print(f"DATABASE ERROR in /api/get-eco: {e}")
+        return jsonify({"error": "Database connection failed. Please ensure chess_ratings.db is included in the deployment."}), 500
     except Exception as e:
-        # Log the error for debugging
-        print(f"Error in /api/get-eco: {e}")
+        print(f"GENERAL ERROR in /api/get-eco: {e}")
         return jsonify({"error": "An internal server error occurred."}), 500
 
 
@@ -64,10 +80,6 @@ def get_eco():
 def get_eval():
     """
     This is a placeholder for a chess position evaluation function.
-    Implementing a real-time evaluation would require a chess engine like Stockfish,
-    which is complex to run in a standard serverless environment.
-    
-    For now, this endpoint returns a placeholder evaluation.
     """
     try:
         data = request.get_json()
@@ -76,10 +88,9 @@ def get_eval():
             return jsonify({"error": "FEN string is required."}), 400
             
         # Placeholder evaluation logic
-        # In a real application, you would integrate a chess engine here.
         evaluation = {
-            "score": "+0.1",
-            "best_move": "e2e4"
+            "score": "N/A",
+            "bestMove": "N/A"
         }
         
         return jsonify(evaluation)
@@ -94,6 +105,3 @@ def status():
     return jsonify(message="Chess API is running!")
 
 # Vercel will run this 'app' object.
-# The following block is for local development and will not run on Vercel.
-if __name__ == '__main__':
-    app.run(debug=True, port=5000)

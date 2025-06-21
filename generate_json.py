@@ -5,7 +5,8 @@ import sys
 
 # This is the directory where your Flask API is located.
 API_DIR = "api"
-DB_FILE = "chess_ratings.db" # The name of your local SQLite database file.
+# **FIX**: This now correctly matches the DB name in your update script.
+DB_FILE = "chess_ratings.db" 
 
 def export_table_to_json(table_name, query, output_filename, process_func=None):
     """
@@ -51,26 +52,29 @@ def process_openings_stats(data):
 if __name__ == "__main__":
     print("--- Starting Data Export to JSON for Vercel API ---")
     
-    # Run your script that updates the local SQLite database
-    # Make sure 'update_tracker_sqlite.py' exists and is correct.
     print("Running local database update script...")
     try:
+        # Import the script to make its functions available
         import update_tracker_sqlite
-        update_tracker_sqlite.run_update() # This is the correct function name
+        # **FIX**: Call the correct function from the imported script
+        update_tracker_sqlite.run_update()
         print("Local database updated successfully.")
     except Exception as e:
         print(f"ERROR: Failed to run update_tracker_sqlite.py: {e}")
         sys.exit(1)
 
+    # **FIX**: Queries now use the correct column names from the database
+    # and rename them (e.g., `friend_name AS player`) for the JSON output
+    # so the frontend receives the expected field names.
     export_table_to_json(
         "current_ratings",
-        "SELECT player, rapid, blitz, bullet FROM current_ratings",
+        "SELECT friend_name AS player, rapid_rating AS rapid, blitz_rating AS blitz, bullet_rating AS bullet FROM current_ratings",
         "current-ratings.json"
     )
     
     export_table_to_json(
         "rating_history",
-        "SELECT player, category, rating, date FROM rating_history",
+        "SELECT player_name AS player, category, rating, date FROM rating_history",
         "rating-history.json"
     )
 
@@ -82,3 +86,5 @@ if __name__ == "__main__":
     )
 
     print("\n--- Data Export Complete ---")
+    print(f"IMPORTANT: Please commit the updated 'generate_json.py' file and the new JSON files inside the '{API_DIR}/' directory to your repository and redeploy.")
+

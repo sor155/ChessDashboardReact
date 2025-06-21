@@ -3,7 +3,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { Chessboard } from 'react-chessboard';
 import { Chess } from 'chess.js';
 
-// --- Constants ---
+// --- Constants (from your file) ---
 const FRIENDS = [
     { name: "Ulysse", username: "realulysse" },
     { name: "Simon", username: "poulet_tao" },
@@ -21,7 +21,7 @@ const MANUAL_INITIAL_RATINGS = {
 };
 
 
-// --- Theme and Utility Hooks ---
+// --- Theme and Utility Hooks (from your file) ---
 const useTheme = () => {
     const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
     useEffect(() => {
@@ -34,12 +34,11 @@ const useTheme = () => {
 };
 
 // --- API & Data Fetching ---
-const API_BASE_URL = '/api'; // **FIX**: Use a relative path for Vercel
-
-
+// **FIX**: The base URL is removed. The fetchData function now uses relative paths.
 async function fetchData(endpoint) {
     try {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`);
+        // **FIX**: The path now starts with /api/ which will be correctly routed by Vercel.
+        const response = await fetch(`/api${endpoint}`);
         if (!response.ok) throw new Error(`Network response was not ok for ${endpoint}`);
         return await response.json();
     } catch (error) {
@@ -49,7 +48,7 @@ async function fetchData(endpoint) {
 }
 
 
-// --- UI Components ---
+// --- UI Components (from your file) ---
 const SunIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>;
 const MoonIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>;
 
@@ -59,23 +58,22 @@ function Dashboard({ currentRatings, ratingHistory, theme }) {
     const [selectedCategory, setSelectedCategory] = useState("Rapid");
 
     useEffect(() => {
-        const dataByCategory = ratingHistory.filter(h => h.category.includes(selectedCategory));
+        const dataByCategory = ratingHistory.filter(h => h.category.toLowerCase().includes(selectedCategory.toLowerCase()));
 
         const playerSeries = selectedPlayers.map(player => {
             return dataByCategory
                 .filter(h => h.player_name === player)
                 .map(h => ({
-                    date: new Date(h.timestamp).getTime(),
+                    date: new Date(h.date).getTime(),
                     rating: h.rating,
                     player: player
                 }))
                 .sort((a, b) => a.date - b.date);
         });
 
-        const allDates = [...new Set(dataByCategory.map(h => new Date(h.timestamp).getTime()))].sort((a, b) => a - b);
+        const allDates = [...new Set(dataByCategory.map(h => new Date(h.date).toLocaleDateString()))].sort((a, b) => new Date(a) - new Date(b));
 
-        const processedData = allDates.map(date => {
-            const dateStr = new Date(date).toLocaleDateString();
+        const processedData = allDates.map(dateStr => {
             const dataPoint = { date: dateStr };
             playerSeries.forEach(series => {
                 if (series.length > 0) {
@@ -194,39 +192,34 @@ function Dashboard({ currentRatings, ratingHistory, theme }) {
     );
 }
 
-function PlayerStats({ theme }) {
+function PlayerStats({ theme, openingStats: allOpeningStats }) {
     const [selectedPlayer, setSelectedPlayer] = useState(FRIENDS[0].username);
     const [playerData, setPlayerData] = useState(null);
     const [openings, setOpenings] = useState({ white: [], black: [] });
     const [loading, setLoading] = useState(true);
 
-// Inside the PlayerStats component
-useEffect(() => {
-    const fetchAllPlayerData = async () => {
-        setLoading(true);
-        try {
-            // This part still fetches live data from chess.com
-            const statsRes = await fetch(`https://api.chess.com/pub/player/${selectedPlayer}/stats`);
-            const stats = await statsRes.json();
-            setPlayerData({ stats });
-            
-            // **FIX**: Filter the opening stats passed down from the main App component
-            const friendName = FRIENDS.find(f => f.username === selectedPlayer)?.name;
-            if (allOpeningStats) {
+    useEffect(() => {
+        const fetchAllPlayerData = async () => {
+            setLoading(true);
+            try {
+                // **FIX**: The opening stats are passed in via props, not fetched here anymore
+                const stats = await fetch(`https://api.chess.com/pub/player/${selectedPlayer}/stats`).then(res => res.json());
+
+                const friendName = FRIENDS.find(f => f.username === selectedPlayer)?.name;
                 const playerOpeningStats = allOpeningStats.filter(s => s.player === friendName);
-                // Note: The logic to split by white/black might need adjustment based on your DB schema
+
+                setPlayerData({ stats });
                 setOpenings({ white: playerOpeningStats, black: playerOpeningStats });
+
+            } catch (error) {
+                console.error("Failed to fetch player data:", error);
+            } finally {
+                setLoading(false);
             }
+        };
 
-        } catch (error) {
-            console.error("Failed to fetch player data:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    fetchAllPlayerData();
-}, [selectedPlayer, allOpeningStats]);
+        fetchAllPlayerData();
+    }, [selectedPlayer, allOpeningStats]);
 
     const chartColor = theme === 'dark' ? '#9ca3af' : '#9e9e9e';
 
@@ -250,8 +243,8 @@ useEffect(() => {
                             <YAxis type="category" dataKey="opening_name" width={120} stroke={chartColor} tick={{ fontSize: 12 }} />
                             <Tooltip contentStyle={{ backgroundColor: theme === 'dark' ? '#1f2937' : '#ffffff' }} formatter={(value, name, props) => {
                                 if (name === "games_played") {
-                                    const { wins, losses, draws } = props.payload;
-                                    return `${value} (W: ${wins}, L: ${losses}, D: ${draws})`;
+                                    const { white_wins, black_wins, draws } = props.payload;
+                                    return `${value} (W: ${white_wins}, L: ${props.payload.losses}, D: ${draws})`;
                                 }
                                 return value;
                             }} />
@@ -508,61 +501,60 @@ export default function App() {
     const [activeTab, setActiveTab] = useState('Dashboard');
     const [currentRatings, setCurrentRatings] = useState([]);
     const [ratingHistory, setRatingHistory] = useState([]);
+    const [openingStats, setOpeningStats] = useState([]); // **FIX**: Added missing state
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-  // In the main App component at the bottom
-const loadAllData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-        // **FIX**: Corrected the endpoint paths to match the Python API
-        const ratingsData = await fetchData('/current-ratings');
-        const historyData = await fetchData('/rating-history');
-        const openingsData = await fetchData('/opening-stats'); // Fetch opening stats here
+    const loadAllData = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            // **FIX**: Corrected the endpoint names from your original file
+            const ratingsData = await fetchData('/current-ratings');
+            const historyData = await fetchData('/rating-history');
+            const openingsData = await fetchData('/opening-stats'); // **FIX**: Fetch opening stats
 
-        if (!Array.isArray(ratingsData) || !Array.isArray(historyData) || !Array.isArray(openingsData)) {
-            throw new Error("Data from API is not in the expected format.");
+            if (!Array.isArray(ratingsData) || !Array.isArray(historyData) || !Array.isArray(openingsData)) {
+                throw new Error("Data from API is not in the expected format.");
+            }
+
+            const friendUsernameMap = FRIENDS.reduce((acc, curr) => {
+                acc[curr.name] = curr.username;
+                return acc;
+            }, {});
+
+            const ratingsWithChanges = ratingsData.map(player => {
+                const username = friendUsernameMap[player.player];
+                const initialRatings = MANUAL_INITIAL_RATINGS[username];
+
+                const rapid_change = initialRatings ? player.rapid - initialRatings.Rapid : 0;
+                const blitz_change = initialRatings ? player.blitz - initialRatings.Blitz : 0;
+                const bullet_change = initialRatings ? player.bullet - initialRatings.Bullet : 0;
+
+                return {
+                    ...player,
+                    friend_name: player.player,
+                    rapid_rating: player.rapid,
+                    blitz_rating: player.blitz,
+                    bullet_rating: player.bullet,
+                    rapid_change,
+                    blitz_change,
+                    bullet_change
+                };
+            });
+
+            const historyWithPlayerNames = historyData.map(h => ({...h, player_name: h.player}));
+
+            setCurrentRatings(ratingsWithChanges);
+            setRatingHistory(historyWithPlayerNames);
+            setOpeningStats(openingsData); // **FIX**: Save the fetched opening stats
+        } catch (e) {
+            setError("Could not connect to the backend API. Please ensure the 'api.py' server is running.");
+            console.error(e);
+        } finally {
+            setLoading(false);
         }
-
-        const friendUsernameMap = FRIENDS.reduce((acc, curr) => {
-            acc[curr.name] = curr.username;
-            return acc;
-        }, {});
-
-        const ratingsWithChanges = ratingsData.map(player => {
-            const username = friendUsernameMap[player.player];
-            const initialRatings = MANUAL_INITIAL_RATINGS[username];
-
-            const rapid_change = initialRatings ? player.rapid - initialRatings.Rapid : 0;
-            const blitz_change = initialRatings ? player.blitz - initialRatings.Blitz : 0;
-            const bullet_change = initialRatings ? player.bullet - initialRatings.Bullet : 0;
-
-            return {
-                ...player,
-                friend_name: player.player,
-                rapid_rating: player.rapid,
-                blitz_rating: player.blitz,
-                bullet_rating: player.bullet,
-                rapid_change,
-                blitz_change,
-                bullet_change
-            };
-        });
-
-        const historyWithPlayerNames = historyData.map(h => ({...h, player_name: h.player}));
-
-        setCurrentRatings(ratingsWithChanges);
-        setRatingHistory(historyWithPlayerNames);
-        setOpeningStats(openingsData); // Set the opening stats in the main state
-
-    } catch (e) {
-        setError("Could not connect to the backend API. Please ensure the 'api.py' server is running and the database is connected.");
-        console.error(e);
-    } finally {
-        setLoading(false);
-    }
-}, []);
+    }, []);
 
     useEffect(() => {
         loadAllData();
@@ -572,15 +564,15 @@ const loadAllData = useCallback(async () => {
         if (loading) return <div className="text-center p-10 text-gray-700 dark:text-gray-300">Loading data from backend...</div>;
         if (error) return <div className="text-center p-10 text-red-500 font-semibold">{error}</div>;
         switch (activeTab) {
-            case 'Dashboard': return <Dashboard friends={FRIENDS} currentRatings={currentRatings} ratingHistory={ratingHistory} theme={theme} />;
-            case 'Player Stats': return <PlayerStats friends={FRIENDS} theme={theme} />;
+            case 'Dashboard': return <Dashboard currentRatings={currentRatings} ratingHistory={ratingHistory} theme={theme} />;
+            case 'Player Stats': return <PlayerStats friends={FRIENDS} theme={theme} openingStats={openingStats} />;
             case 'Game Analysis': return <GameAnalysis theme={theme} />;
-            default: return <Dashboard friends={FRIENDS} currentRatings={currentRatings} ratingHistory={ratingHistory} theme={theme} />;
+            default: return <Dashboard currentRatings={currentRatings} ratingHistory={ratingHistory} theme={theme} />;
         }
     };
 
     const NavItem = ({ name }) => (
-        <button onClick={() => setActiveTab(name)} className={`w-full text-left px-4 py-2.5 rounded-lg text-md transition-colors ${activeTab === name ? 'bg-indigo-100 dark:bg-gray-700 text-indigo-700 dark:text-gray-100 font-semibold' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 hover:text-gray-900 dark:hover:text-gray-100'}`}>
+        <button onClick={() => setActiveTab(name)} className={`w-full text-left px-4 py-2.5 rounded-lg text-md transition-colors ${activeTab === name ? 'bg-indigo-100 dark:bg-gray-700 text-indigo-700 dark:text-gray-100 font-semibold' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 hover:text-gray-100'}`}>
             {name}
         </button>
     );

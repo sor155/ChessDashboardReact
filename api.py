@@ -4,6 +4,7 @@ import os
 import traceback
 import libsql_client
 from datetime import datetime
+import asyncio
 
 # --- Global Database Client ---
 # We will initialize this once and reuse it across requests.
@@ -50,12 +51,12 @@ def rows_to_dicts(rs):
 # --- API Endpoints ---
 
 @app.route('/api/current-ratings', methods=['GET'])
-def get_current_ratings():
+async def get_current_ratings():
     print("\n--- /api/current-ratings endpoint triggered ---")
     if db_client is None:
         return jsonify({"error": "Database client is not initialized."}), 500
     try:
-        rs = db_client.execute("SELECT player, rapid, blitz, bullet FROM current_ratings")
+        rs = await db_client.execute("SELECT player, rapid, blitz, bullet FROM current_ratings")
         ratings = rows_to_dicts(rs)
         print(f"Successfully fetched {len(ratings)} current ratings.")
         return jsonify(ratings)
@@ -65,12 +66,12 @@ def get_current_ratings():
         return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/api/rating-history', methods=['GET'])
-def get_rating_history():
+async def get_rating_history():
     print("\n--- /api/rating-history endpoint triggered ---")
     if db_client is None:
         return jsonify({"error": "Database client is not initialized."}), 500
     try:
-        rs = db_client.execute("SELECT player, category, rating, date FROM rating_history")
+        rs = await db_client.execute("SELECT player, category, rating, date FROM rating_history")
         history = rows_to_dicts(rs)
         # Handle date conversion safely
         for item in history:
@@ -84,12 +85,12 @@ def get_rating_history():
         return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/api/opening-stats', methods=['GET'])
-def get_opening_stats():
+async def get_opening_stats():
     print("\n--- /api/opening-stats endpoint triggered ---")
     if db_client is None:
         return jsonify({"error": "Database client is not initialized."}), 500
     try:
-        rs = db_client.execute("SELECT player, opening_name, games_played, white_wins, black_wins, draws FROM opening_stats")
+        rs = await db_client.execute("SELECT player, opening_name, games_played, white_wins, black_wins, draws FROM opening_stats")
         stats = rows_to_dicts(rs)
         # Calculate losses
         for stat in stats:
@@ -107,17 +108,17 @@ def get_opening_stats():
 
 
 @app.route('/api/get-eco', methods=['POST'])
-def get_eco():
+async def get_eco():
     print("\n--- /api/get-eco endpoint triggered ---")
     if db_client is None:
         return jsonify({"error": "Database client is not initialized."}), 500
     try:
-        data = request.get_json()
+        data = await request.get_json()
         fen = data.get('fen')
         if not fen:
             return jsonify({"error": "FEN string is required."}), 400
         
-        rs = db_client.execute("SELECT eco, name FROM opening_stats WHERE fen = ?", [fen])
+        rs = await db_client.execute("SELECT eco, name FROM opening_stats WHERE fen = ?", [fen])
         
         if len(rs.rows) > 0:
             opening = dict(zip(rs.columns, rs.rows[0]))

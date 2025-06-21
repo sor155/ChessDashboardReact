@@ -3,6 +3,7 @@ from flask_cors import CORS
 import os
 import traceback
 import libsql_client
+from datetime import datetime
 
 # Initialize Flask App
 app = Flask(__name__)
@@ -11,31 +12,82 @@ CORS(app)
 # --- Turso Database Helper Function ---
 def get_db_connection():
     """
-    Creates a connection to the remote Turso database using environment variables.
+    Creates a connection to the remote Turso database using environment variables
+    set by the Vercel integration.
     """
-    # These are read from the Vercel Environment Variables you set
-    url = os.environ.get("TURSO_DATABASE_URL")
+    url = os.environ.get("TURSO_URL") or os.environ.get("TURSO_DATABASE_URL")
     auth_token = os.environ.get("TURSO_AUTH_TOKEN")
 
     if not url or not auth_token:
-        # This will be logged in Vercel if the environment variables are missing
-        print("FATAL ERROR: TURSO_DATABASE_URL and TURSO_AUTH_TOKEN environment variables are not set.")
-        raise Exception("Turso database URL and Auth Token must be set as environment variables.")
-        
-    # Force HTTPS for reliability
+        print("FATAL ERROR: Database credentials not found in environment variables.")
+        raise Exception("Database credentials not found in environment variables.")
+
+    # Force HTTPS for reliability in some environments
     if url.startswith("libsql://"):
         url = "https" + url[6:]
 
-    # Connect to the Turso database
+    print(f"Connecting to Turso with URL: {url}")
     return libsql_client.create_client(url=url, auth_token=auth_token)
 
 # --- API Endpoints ---
 
+@app.route('/api/current-ratings', methods=['GET'])
+def get_current_ratings():
+    """
+    Fetches the latest rating for each player from the 'current_ratings' table.
+    """
+    print("\n--- /api/current-ratings endpoint triggered ---")
+    try:
+        client = get_db_connection()
+        rs = client.execute("SELECT player, rapid, blitz, bullet FROM current_ratings")
+        ratings = [dict(row) for row in rs.rows]
+        print(f"Successfully fetched {len(ratings)} current ratings.")
+        return jsonify(ratings)
+    except Exception as e:
+        print(f"!!! UNHANDLED EXCEPTION in /api/current-ratings: {e}")
+        traceback.print_exc()
+        return jsonify({"error": "An internal server error occurred."}), 500
+
+@app.route('/api/rating-history', methods=['GET'])
+def get_rating_history():
+    """
+    Fetches all rating history for the progression graph from the 'rating_history' table.
+    """
+    print("\n--- /api/rating-history endpoint triggered ---")
+    try:
+        client = get_db_connection()
+        rs = client.execute("SELECT player, category, rating, date FROM rating_history")
+        history = [dict(row) for row in rs.rows]
+        print(f"Successfully fetched {len(history)} rating history records.")
+        return jsonify(history)
+    except Exception as e:
+        print(f"!!! UNHANDLED EXCEPTION in /api/rating-history: {e}")
+        traceback.print_exc()
+        return jsonify({"error": "An internal server error occurred."}), 500
+
+@app.route('/api/opening-stats', methods=['GET'])
+def get_opening_stats():
+    """
+    **NEW ENDPOINT**
+    Fetches player statistics for each opening from the 'opening_stats' table.
+    """
+    print("\n--- /api/opening-stats endpoint triggered ---")
+    try:
+        client = get_db_connection()
+        rs = client.execute("SELECT player, opening_name, games_played, white_wins, black_wins, draws FROM opening_stats")
+        stats = [dict(row) for row in rs.rows]
+        print(f"Successfully fetched {len(stats)} opening stat records.")
+        return jsonify(stats)
+    except Exception as e:
+        print(f"!!! UNHANDLED EXCEPTION in /api/opening-stats: {e}")
+        traceback.print_exc()
+        return jsonify({"error": "An internal server error occurred."}), 500
+
+
 @app.route('/api/get-eco', methods=['POST'])
 def get_eco():
     """
-    Looks up the opening name for a given FEN from the remote Turso database.
-    This now queries the 'opening_stats' table as requested.
+    Looks up the opening name for a given FEN from the 'opening_stats' table.
     """
     print("\n--- /api/get-eco endpoint triggered ---")
     try:
@@ -45,11 +97,7 @@ def get_eco():
             return jsonify({"error": "FEN string is required."}), 400
 
         client = get_db_connection()
-        print("Database connection to Turso successful.")
         
-        # **FIX**: Querying from 'opening_stats' table now.
-        # Assuming it has 'eco' and 'name' columns for a given 'fen'.
-        # If the column names are different, this query will need to be adjusted.
         print(f"Querying 'opening_stats' for FEN: {fen}")
         rs = client.execute("SELECT eco, name FROM opening_stats WHERE fen = ?", [fen])
         
@@ -66,9 +114,7 @@ def get_eco():
     except Exception as e:
         print(f"!!! UNHANDLED EXCEPTION in /api/get-eco: {e}")
         traceback.print_exc()
-        return jsonify({"error": "An internal server error occurred. Check Vercel function logs."}), 500
-
-# Other endpoints...
+        return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/api/status', methods=['GET'])
 def status():

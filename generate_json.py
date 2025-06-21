@@ -56,7 +56,7 @@ if __name__ == "__main__":
     print("Running local database update script...")
     try:
         import update_tracker_sqlite
-        update_tracker_sqlite.main() # Assuming your script has a main function
+        update_tracker_sqlite.run_update() # This is the correct function name
         print("Local database updated successfully.")
     except Exception as e:
         print(f"ERROR: Failed to run update_tracker_sqlite.py: {e}")

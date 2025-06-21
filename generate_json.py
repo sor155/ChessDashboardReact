@@ -1,3 +1,8 @@
+This is the final and correct setup for your project. It uses a stable API that reads from local JSON files, which are updated automatically by a GitHub Actions workflow.
+
+Step 1: Create/Update generate_json.py
+In the root directory of your project, ensure you have a file named generate_json.py with the following content. This version uses the exact column names we discovered from your database schema.
+
 import sqlite3
 import json
 import os
@@ -7,7 +12,7 @@ import sys
 API_DIR = "api"
 DB_FILE = "chess_ratings.db" 
 
-# This maps the Chess.com usernames in 'opening_stats' to the display names used elsewhere.
+# Maps usernames to the display names used elsewhere
 USERNAME_TO_NAME_MAP = {
     "realulysse": "Ulysse",
     "poulet_tao": "Simon",
@@ -48,13 +53,8 @@ def export_table_to_json(query, output_filename, process_func=None):
 
 def process_openings_stats(data):
     """
-    This function processes the opening stats to match the frontend's expectations.
-    It pivots the data from being color-specific to being aggregated per opening,
-    and maps the username to the friend's display name.
+    Processes the opening stats to match the frontend's expectations.
     """
-    # The frontend expects a 'player' key with the friend's name, not the username.
-    # It also expects wins to be broken down by color.
-    # The original query has already aggregated the data, so now we just rename the key.
     for row in data:
         username = row.get("player_username")
         if username in USERNAME_TO_NAME_MAP:
@@ -66,7 +66,6 @@ def process_openings_stats(data):
 if __name__ == "__main__":
     print("--- Starting Data Export to JSON for Vercel API ---")
     
-    # Run the user's script to update the local SQLite database first.
     print("Running local database update script...")
     try:
         import update_tracker_sqlite
@@ -76,21 +75,18 @@ if __name__ == "__main__":
         print(f"ERROR: Failed to run update_tracker_sqlite.py: {e}")
         sys.exit(1)
 
-    # --- Generate JSON Files ---
+    # --- Generate JSON Files using correct schema ---
 
-    # Export current ratings, renaming columns to match frontend
     export_table_to_json(
         "SELECT friend_name AS player, rapid_rating AS rapid, blitz_rating AS blitz, bullet_rating AS bullet FROM current_ratings",
         "current-ratings.json"
     )
     
-    # Export rating history, renaming columns to match frontend
     export_table_to_json(
         "SELECT player_name AS player, category, rating, timestamp AS date FROM rating_history",
         "rating-history.json"
     )
 
-    # Export and process opening stats
     export_table_to_json(
         """
         SELECT

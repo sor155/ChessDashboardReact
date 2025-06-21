@@ -424,16 +424,39 @@ function GameAnalysis() {
 
     const isGameLoaded = history.length > 0;
 
-    const EvaluationBar = ({ score }) => {
+const EvaluationBar = ({ score }) => {
         const numScore = parseFloat(score);
         if (isNaN(numScore)) return null;
         const clampedScore = Math.max(-10, Math.min(10, numScore));
         const percentage = 50 + (clampedScore * 5);
+        
+        // Determine color based on evaluation
+        const getEvalColor = (score) => {
+            if (score > 2) return 'text-green-600 dark:text-green-400';
+            if (score > 0.5) return 'text-green-500 dark:text-green-300';
+            if (score < -2) return 'text-red-600 dark:text-red-400';
+            if (score < -0.5) return 'text-red-500 dark:text-red-300';
+            return 'text-gray-600 dark:text-gray-400';
+        };
+
         return (
-            <div className="w-full bg-gray-700 rounded-full h-6 dark:bg-gray-800 my-2 relative overflow-hidden">
-                <div className="bg-white h-6 rounded-full" style={{ width: `${percentage}%`, transition: 'width 0.3s ease-in-out' }} />
-                <div className="absolute inset-0 flex items-center justify-center text-sm font-bold text-black mix-blend-difference">
-                    Eval: {score}
+            <div className="my-4">
+                <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Position Evaluation</span>
+                    <span className={`text-lg font-bold ${getEvalColor(numScore)}`}>
+                        {numScore > 0 ? '+' : ''}{score}
+                    </span>
+                </div>
+                <div className="w-full bg-gray-700 rounded-full h-6 dark:bg-gray-800 relative overflow-hidden">
+                    <div className="bg-white h-6 rounded-full" style={{ width: `${percentage}%`, transition: 'width 0.3s ease-in-out' }} />
+                    <div className="absolute inset-0 flex items-center justify-center text-xs font-medium text-black mix-blend-difference">
+                        White advantage ← → Black advantage
+                    </div>
+                </div>
+                <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    <span>Black</span>
+                    <span>Equal</span>
+                    <span>White</span>
                 </div>
             </div>
         );

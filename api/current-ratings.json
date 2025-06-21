@@ -1,0 +1,32 @@
+[
+  {
+    "player": "Ulysse",
+    "rapid": 1981,
+    "blitz": 1491,
+    "bullet": 1349
+  },
+  {
+    "player": "Simon",
+    "rapid": 1006,
+    "blitz": 429,
+    "bullet": 716
+  },
+  {
+    "player": "Adrien",
+    "rapid": 1637,
+    "blitz": 1120,
+    "bullet": 791
+  },
+  {
+    "player": "Alex",
+    "rapid": 874,
+    "blitz": 268,
+    "bullet": 487
+  },
+  {
+    "player": "Kevin",
+    "rapid": 702,
+    "blitz": 846,
+    "bullet": 577
+  }
+]

@@ -380,100 +380,105 @@ function GameAnalysis() {
         loadEcoData();
     }, []);
     
-    const getEvaluation = useCallback((fen) => {
-        return new Promise((resolve) => {
-            if (analysisCache.current[fen]) {
-                resolve(analysisCache.current[fen]);
-                return;
-            }
+    const getEvaluation = useCallback(async (fen) => {
+        if (analysisCache.current[fen]) {
+            return analysisCache.current[fen];
+        }
 
-            if (engineStatus !== 'Ready' || !stockfish.current) {
-                resolve(null);
-                return;
-            };
+        if (engineStatus !== 'Ready' || !stockfish.current) {
+            return null;
+        };
 
-            const messageHistory = [];
-            const onMessage = (event) => {
-                const message = String(event.data);
-                messageHistory.push(message);
+        try {
+            await stockfish.current.postMessage(`position fen ${fen}`);
+            await stockfish.current.postMessage('go depth 15');
 
-                if (message.startsWith('bestmove')) {
-                    const finalTopMoves = [];
-                    const tempGame = new Chess(fen);
-                     messageHistory.forEach(line => {
-                        if(line.startsWith('info depth') && line.includes('multipv')) {
-                            const multipvMatch = line.match(/multipv (\d+)/);
-                            const scoreMatch = line.match(/score (cp|mate) (-?\d+)/);
-                            const pvMatch = line.match(/ pv (.+)/);
+            return new Promise((resolve) => {
+                const onMessage = (event) => {
+                    const message = String(event.data);
+                    if (message.startsWith('bestmove')) {
+                        const lines = message.split('\n');
+                        const finalTopMoves = [];
+                        const tempGame = new Chess(fen);
+                        
+                        lines.forEach(line => {
+                            if (line.startsWith('info depth') && line.includes('multipv')) {
+                                const multipvMatch = line.match(/multipv (\d+)/);
+                                const scoreMatch = line.match(/score (cp|mate) (-?\d+)/);
+                                const pvMatch = line.match(/ pv (.+)/);
 
-                            if (multipvMatch && scoreMatch && pvMatch) {
-                                const pvIndex = parseInt(multipvMatch[1], 10) - 1;
-                                const scoreType = scoreMatch[1];
-                                let scoreValue = parseInt(scoreMatch[2], 10);
-                                const firstMove = pvMatch[1].split(' ')[0];
+                                if (multipvMatch && scoreMatch && pvMatch) {
+                                    const pvIndex = parseInt(multipvMatch[1], 10) - 1;
+                                    const scoreType = scoreMatch[1];
+                                    let scoreValue = parseInt(scoreMatch[2], 10);
+                                    const firstMove = pvMatch[1].split(' ')[0];
 
-                                if (scoreType === 'cp') {
-                                    scoreValue = (scoreValue / 100.0).toFixed(2);
-                                } else {
-                                    scoreValue = `M${scoreValue}`;
-                                }
-                                
-                                try {
-                                    const moveResult = tempGame.move(firstMove, { sloppy: true });
-                                    if (moveResult) {
-                                        finalTopMoves[pvIndex] = { san: moveResult.san, score: scoreValue };
-                                        tempGame.undo();
+                                    if (scoreType === 'cp') {
+                                        scoreValue = (scoreValue / 100.0).toFixed(2);
+                                    } else {
+                                        scoreValue = `M${scoreValue}`;
                                     }
-                                } catch (e) {
-                                    // Ignore invalid moves from engine
+                                    
+                                    try {
+                                        const moveResult = tempGame.move(firstMove, { sloppy: true });
+                                        if (moveResult) {
+                                            finalTopMoves[pvIndex] = { san: moveResult.san, score: scoreValue };
+                                            tempGame.undo();
+                                        }
+                                    } catch(e) {
+                                        // Ignore invalid moves
+                                    }
                                 }
                             }
-                        }
-                    });
-                    
-                    stockfish.current.removeEventListener('message', onMessage);
-                    analysisCache.current[fen] = finalTopMoves;
-                    resolve(finalTopMoves);
-                }
-            };
-            stockfish.current.addEventListener('message', onMessage);
-            stockfish.current.postMessage(`position fen ${fen}`);
-            stockfish.current.postMessage('go depth 15');
-        });
+                        });
+                        
+                        stockfish.current.removeEventListener('message', onMessage);
+                        analysisCache.current[fen] = finalTopMoves;
+                        resolve(finalTopMoves);
+                    }
+                };
+                stockfish.current.addEventListener('message', onMessage);
+            });
+        } catch (error) {
+            console.error("Stockfish engine error:", error);
+            setEngineStatus("Engine crashed. Please reload.");
+            return null;
+        }
     }, [engineStatus]);
     
     useEffect(() => {
-        const STOCKFISH_URL = process.env.PUBLIC_URL + '/stockfish-17-lite-single.js';
-        let worker;
-        try {
-            worker = new Worker(STOCKFISH_URL);
+        const initStockfish = () => {
+            const worker = new Worker(`${process.env.PUBLIC_URL}/stockfish.js`);
             stockfish.current = worker;
 
-            const onUciOk = (event) => {
-                 if (String(event.data) === 'uciok') {
+            worker.addEventListener('message', (event) => {
+                if (String(event.data) === 'uciok') {
                     worker.postMessage('setoption name MultiPV value 3');
                     worker.postMessage('isready');
-                 }
-                 if(String(event.data) === 'readyok'){
+                }
+                if (String(event.data) === 'readyok') {
                     setEngineStatus('Ready');
-                    worker.removeEventListener('message', onUciOk);
-                 }
-            };
-            worker.addEventListener('message', onUciOk);
-
-            worker.onerror = (e) => {
-                 setEngineStatus(`Error: Stockfish failed.`);
-                 console.error("Stockfish worker error:", e);
-            };
-            worker.postMessage('uci');
-
-            return () => {
+                }
+            });
+            
+            worker.addEventListener('error', (e) => {
+                setEngineStatus(`Engine error. Please reload.`);
+                console.error("Stockfish worker error:", e);
                 worker.terminate();
-            };
-        } catch (error) {
-            setEngineStatus('Failed to load worker.');
-            console.error("Failed to initialize Stockfish worker:", error);
-        }
+                // Optionally, you can try to re-initialize the worker here
+                // initStockfish(); 
+            });
+
+            worker.postMessage('uci');
+        };
+
+        initStockfish();
+
+        return () => {
+            if (stockfish.current) {
+                stockfish.current.terminate();
+            }
+        };
     }, []);
 
     const handleLoadPgn = () => {

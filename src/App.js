@@ -696,7 +696,7 @@ export default function App() {
             )}
 
             {/* Desktop Sidebar Navigation */}
-            <aside className="hidden lg:flex w-64 bg-white dark:bg-gray-800 flex-shrink-0 border-r border-gray-200 dark:border-gray-700 flex-col">
+            <aside className="hidden lg:flex w-56 bg-white dark:bg-gray-800 flex-shrink-0 border-r border-gray-200 dark:border-gray-700 flex-col">
                 <div className="p-4 border-b border-gray-200 dark:border-gray-700">
                     <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">♟️ Chess App</h1>
                 </div>

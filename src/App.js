@@ -262,43 +262,34 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
         </div>
     );
 
-    const FavoriteOpeningsTable = ({ data, title }) => {
-        if (!data || data.length === 0) {
+    const TopOpeningsList = ({ title, data }) => {
+        const top5 = data
+            .sort((a, b) => b.games_played - a.games_played)
+            .slice(0, 5);
+
+        if (top5.length === 0) {
             return (
                 <div>
                     <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">{title}</h3>
-                    <div className="text-gray-500 dark:text-gray-400">No opening data available.</div>
+                    <p className="text-gray-500 dark:text-gray-400">No opening data available.</p>
                 </div>
             );
         }
 
         return (
-            <div className="overflow-x-auto mb-6">
+            <div className="mb-6">
                 <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">{title}</h3>
-                <table className="min-w-full table-auto border-collapse">
-                    <thead>
-                        <tr className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm uppercase text-left">
-                            <th className="px-4 py-2">Opening</th>
-                            <th className="px-4 py-2">Color</th>
-                            <th className="px-4 py-2">Games</th>
-                            <th className="px-4 py-2">Wins</th>
-                            <th className="px-4 py-2">Draws</th>
-                            <th className="px-4 py-2">Losses</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {data.map((row, idx) => (
-                            <tr key={idx} className="border-t border-gray-300 dark:border-gray-600 text-sm text-gray-800 dark:text-gray-100">
-                                <td className="px-4 py-2">{row.opening_name}</td>
-                                <td className="px-4 py-2 capitalize">{row.color}</td>
-                                <td className="px-4 py-2">{row.games_played}</td>
-                                <td className="px-4 py-2">{row.white_wins || row.black_wins || 0}</td>
-                                <td className="px-4 py-2">{row.draws}</td>
-                                <td className="px-4 py-2">{row.losses}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                <ol className="list-decimal ml-6 space-y-1 text-gray-700 dark:text-gray-200">
+                    {top5.map((opening, idx) => {
+                        const wins = opening.white_wins || opening.black_wins || 0;
+                        return (
+                            <li key={idx}>
+                                <span className="font-medium">{opening.opening_name}</span> — {opening.games_played} games (
+                                {wins}W / {opening.losses}L / {opening.draws}D)
+                            </li>
+                        );
+                    })}
+                </ol>
             </div>
         );
     };
@@ -360,14 +351,14 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
                     <div className="mt-10 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
                         <h2 className="text-2xl font-semibold mb-4 text-gray-700 dark:text-gray-300">Favorite Openings</h2>
 
-                        <FavoriteOpeningsTable
-                            title="Favorite Openings as White"
+                        <TopOpeningsList
+                            title="Top 5 as White"
                             data={allOpeningStats.filter(s =>
                                 s.player === FRIENDS.find(f => f.username === selectedPlayer)?.name && s.color === 'white'
                             )}
                         />
-                        <FavoriteOpeningsTable
-                            title="Favorite Openings as Black"
+                        <TopOpeningsList
+                            title="Top 5 as Black"
                             data={allOpeningStats.filter(s =>
                                 s.player === FRIENDS.find(f => f.username === selectedPlayer)?.name && s.color === 'black'
                             )}
@@ -380,6 +371,7 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
         </div>
     );
 }
+
 
 
 function GameAnalysis() {

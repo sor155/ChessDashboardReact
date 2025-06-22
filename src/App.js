@@ -323,7 +323,7 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
                     </div>
 
                     <div className="mt-10 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
-                        <h2 className="text-2xl font-semibold mb-4 text-gray-700 dark:text-gray-300">Favorite Openings</h2>
+                        <h2 className="text-2xl font-semibold mb-4 text-gray-700 dark:text-gray-300">Favorite Openings last 4 months</h2>
 
                         <TopOpeningsList
                             title="Top 5 as White"

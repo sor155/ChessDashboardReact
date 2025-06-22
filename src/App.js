@@ -195,21 +195,26 @@ function Dashboard({ currentRatings, ratingHistory, theme }) {
 function PlayerStats({ theme, openingStats: allOpeningStats }) {
     const [selectedPlayer, setSelectedPlayer] = useState(FRIENDS[0].username);
     const [playerData, setPlayerData] = useState(null);
-    const [openings, setOpenings] = useState({ white: [], black: [] });
+    // Remove the `openings` state if you're directly filtering
+    // const [openings, setOpenings] = useState({ white: [], black: [] });
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchAllPlayerData = async () => {
             setLoading(true);
             try {
-                // **FIX**: The opening stats are passed in via props, not fetched here anymore
                 const stats = await fetch(`https://api.chess.com/pub/player/${selectedPlayer}/stats`).then(res => res.json());
 
                 const friendName = FRIENDS.find(f => f.username === selectedPlayer)?.name;
                 const playerOpeningStats = allOpeningStats.filter(s => s.player === friendName);
 
+                // Filter for white and black openings
+                const whiteOpenings = playerOpeningStats.filter(s => s.color === 'white');
+                const blackOpenings = playerOpeningStats.filter(s => s.color === 'black');
+
                 setPlayerData({ stats });
-                setOpenings({ white: playerOpeningStats, black: playerOpeningStats });
+                // Pass filtered data directly to the OpeningChart
+                // setOpenings({ white: whiteOpenings, black: blackOpenings }); // This line is no longer needed
 
             } catch (error) {
                 console.error("Failed to fetch player data:", error);
@@ -224,6 +229,7 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
     const chartColor = theme === 'dark' ? '#9ca3af' : '#9e9e9e';
 
     const OpeningChart = ({ data, color, title }) => {
+        // ... (rest of OpeningChart component - no changes needed here)
         if (!data || data.length === 0) {
             return (
                 <div>
@@ -257,6 +263,7 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
     }
 
     const StatCard = ({ title, rating, record }) => (
+        // ... (rest of StatCard component - no changes needed here)
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 text-center">
             <h3 className="text-xl font-semibold text-gray-600 dark:text-gray-400">{title}</h3>
             <p className="text-4xl font-bold text-gray-800 dark:text-gray-100 my-2">{rating || 'N/A'}</p>
@@ -283,8 +290,9 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
                     <div className="mt-10 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
                         <h2 className="text-2xl font-semibold mb-4 text-gray-700 dark:text-gray-300">Favorite Openings</h2>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                            <OpeningChart title="As White" data={openings.white} color="#8884d8" />
-                            <OpeningChart title="As Black" data={openings.black} color="#82ca9d" />
+                            {/* Use the directly filtered data here */}
+                            <OpeningChart title="As White" data={allOpeningStats.filter(s => s.player === FRIENDS.find(f => f.username === selectedPlayer)?.name && s.color === 'white')} color="#8884d8" />
+                            <OpeningChart title="As Black" data={allOpeningStats.filter(s => s.player === FRIENDS.find(f => f.username === selectedPlayer)?.name && s.color === 'black')} color="#82ca9d" />
                         </div>
                     </div>
                 </>

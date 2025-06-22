@@ -371,40 +371,45 @@ function GameAnalysis() {
     const messageHistory = useRef([]);
     const analysisCache = useRef({});
 
-    const generateTemplatedCommentary = useCallback((lastMoveSan, currentEval, prevBestEval) => {
+    const generateTemplatedCommentary = useCallback((lastMoveSan, analysisAfter, analysisBefore) => {
         setIsGeneratingCommentary(true);
         let commentaryText = "";
 
-        if (!lastMoveSan) {
-            commentaryText = "This is the starting position. Load a PGN and make a move to begin analysis.";
+        if (!lastMoveSan || !analysisAfter || !analysisBefore || analysisAfter.length === 0 || analysisBefore.length === 0) {
+            commentaryText = "Analysis data incomplete. Cannot generate commentary.";
+            setIsGeneratingCommentary(false);
+            setCommentary(commentaryText);
+            return;
+        }
+
+        const turn = history[currentMove].color === 'w' ? 1 : -1;
+        
+        const currentScore = parseFloat(analysisAfter[0].score) * turn;
+        const prevScore = parseFloat(analysisBefore[0].score) * turn;
+        
+        const evalChange = currentScore - prevScore;
+
+        let moveQuality = "";
+        if (evalChange < -1.0) {
+            moveQuality = "a blunder";
+        } else if (evalChange < -0.5) {
+            moveQuality = "an inaccuracy";
+        } else if (evalChange > 0.4) {
+            moveQuality = "an excellent move";
         } else {
-            const currentScore = parseFloat(currentEval);
-            const prevScore = parseFloat(prevBestEval);
-            
-            // The logic requires the perspective of the player who just moved.
-            // A drop for white is a positive change for black and vice-versa.
-            // We flip the sign of the previous evaluation for this comparison.
-            const evalDiff = -prevScore - currentScore;
-
-            let moveQuality = "";
-            if (evalDiff < -1.5) {
-                moveQuality = "a blunder";
-            } else if (evalDiff < -0.7) {
-                moveQuality = "an inaccuracy";
-            } else if (evalDiff > 0.3) {
-                moveQuality = "an excellent move";
-            } else {
-                moveQuality = "a good move";
-            }
-
-            commentaryText = `The move ${lastMoveSan} is ${moveQuality}.`;
+            moveQuality = "a good move";
+        }
+        
+        commentaryText = `The move ${lastMoveSan} is ${moveQuality}. `;
+        if (lastMoveSan !== analysisBefore[0].san) {
+            commentaryText += `The engine suggests ${analysisBefore[0].san} with an evaluation of ${analysisBefore[0].score}.`;
         }
 
         setCommentary(commentaryText);
         setIsGeneratingCommentary(false);
-    }, []);
+    }, [history, currentMove]);
 
-    const getEvaluation = useCallback((fen, lastMoveSan) => {
+    const getEvaluation = useCallback((fen) => {
         return new Promise((resolve) => {
             if (analysisCache.current[fen]) {
                 resolve(analysisCache.current[fen]);
@@ -423,8 +428,8 @@ function GameAnalysis() {
                 if (message.startsWith('bestmove')) {
                     const finalTopMoves = [];
                     const tempGame = new Chess(fen);
-                    messageHistory.current.forEach(line => {
-                        if (line.startsWith('info depth') && line.includes('multipv')) {
+                     messageHistory.current.forEach(line => {
+                        if(line.startsWith('info depth') && line.includes('multipv')) {
                             const multipvMatch = line.match(/multipv (\d+)/);
                             const scoreMatch = line.match(/score (cp|mate) (-?\d+)/);
                             const pvMatch = line.match(/ pv (.+)/);
@@ -440,7 +445,7 @@ function GameAnalysis() {
                                 } else {
                                     scoreValue = `M${scoreValue}`;
                                 }
-
+                                
                                 const moveResult = tempGame.move(firstMove, { sloppy: true });
                                 if (moveResult) {
                                     finalTopMoves[pvIndex] = { san: moveResult.san, score: scoreValue };
@@ -449,7 +454,7 @@ function GameAnalysis() {
                             }
                         }
                     });
-
+                    
                     stockfish.current.removeEventListener('message', onMessage);
                     analysisCache.current[fen] = finalTopMoves;
                     resolve(finalTopMoves);
@@ -519,7 +524,7 @@ function GameAnalysis() {
             setGame(new Chess(startingFen));
             setHistory(newGame.history({ verbose: true }));
             setCurrentMove(-1);
-            getEvaluation(startingFen, null).then(analysis => {
+            getEvaluation(startingFen).then(analysis => {
                 if (analysis && analysis.length > 0) {
                     setEvaluation(analysis[0].score);
                     setTopMoves(analysis);
@@ -555,8 +560,8 @@ function GameAnalysis() {
         setGame(tempGame);
         setCurrentMove(index);
         
-        const analysisAfter = await getEvaluation(tempGame.fen(), lastMoveSan);
-        const analysisBefore = await getEvaluation(fenBefore, null);
+        const analysisAfter = await getEvaluation(tempGame.fen());
+        const analysisBefore = await getEvaluation(fenBefore);
         
         if (analysisAfter && analysisAfter.length > 0 && analysisBefore && analysisBefore.length > 0) {
              setEvaluation(analysisAfter[0].score);
@@ -566,16 +571,18 @@ function GameAnalysis() {
     }, [history, getEvaluation, generateTemplatedCommentary]);
 
     const goToPreviousMove = useCallback(() => {
-        if (currentMove > -1) navigateToMove(currentMove - 1);
-        else if (currentMove === 0) { // Special case for going back to start
+        if (currentMove === 0) { 
             setGame(new Chess());
             setCurrentMove(-1);
-            getEvaluation(new Chess().fen(), null).then(analysis => {
+            getEvaluation(new Chess().fen()).then(analysis => {
                 if (analysis && analysis.length > 0) {
                     setEvaluation(analysis[0].score);
                     setTopMoves(analysis);
+                    setCommentary('This is the starting position. Make a move or navigate to see commentary.');
                 }
             });
+        } else if (currentMove > 0) {
+            navigateToMove(currentMove - 1);
         }
     }, [currentMove, navigateToMove, getEvaluation]);
 

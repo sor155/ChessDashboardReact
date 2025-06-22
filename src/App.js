@@ -665,22 +665,22 @@ export default function App() {
 
 
     return (
-        <div className="flex h-screen bg-gray-100 dark:bg-gray-900 font-sans">
-            {/* Mobile Header with Hamburger Menu (now visible on all screen sizes) */}
-            <header className="w-full bg-white dark:bg-gray-800 p-4 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
-                <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">♟️ Chess App</h1>
-                <button onClick={toggleMobileMenu} className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+        <div className="relative h-screen bg-gray-100 dark:bg-gray-900 font-sans">
+            {/* Universal Header - fixed to top-left corner */}
+            <header className="fixed top-0 left-0 z-50 bg-white dark:bg-gray-800 p-3 shadow-md flex items-center justify-between w-40"> {/* Smaller fixed width */}
+                <h1 className="text-xl font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap overflow-hidden text-ellipsis">♟️ Chess App</h1> {/* Keep title visible, maybe truncate */}
+                <button onClick={toggleMobileMenu} className="p-1 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                     <MenuIcon />
                 </button>
             </header>
 
-            {/* Mobile Menu Overlay (now applies to all screen sizes when open) */}
+            {/* Universal Menu Overlay */}
             {isMobileMenuOpen && (
-                <div className="fixed inset-0 bg-gray-900 bg-opacity-75 z-50" onClick={() => setIsMobileMenuOpen(false)}>
-                    {/* The actual sliding menu panel, now smaller on mobile (w-40) */}
-                    <div className={`absolute left-0 top-0 h-full w-40 bg-white dark:bg-gray-800 flex flex-col shadow-lg transform transition-transform duration-300 ease-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`} onClick={(e) => e.stopPropagation()}>
+                <div className="fixed inset-0 bg-gray-900 bg-opacity-75 z-40" onClick={() => setIsMobileMenuOpen(false)}> {/* Z-index lower than header */}
+                    {/* The actual sliding menu panel */}
+                    <div className={`absolute left-0 top-0 h-full w-32 bg-white dark:bg-gray-800 flex flex-col shadow-lg transform transition-transform duration-300 ease-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`} onClick={(e) => e.stopPropagation()}>
                         <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                            <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">Menu</h1>
+                            <h1 className="text-xl font-bold text-gray-800 dark:text-gray-200">Menu</h1>
                             <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                                 <CloseIcon />
                             </button>
@@ -700,27 +700,9 @@ export default function App() {
                 </div>
             )}
 
-            {/* Desktop Sidebar Navigation removed */}
-            {/* <aside className="hidden lg:flex w-48 bg-white dark:bg-gray-800 flex-shrink-0 border-r border-gray-200 dark:border-gray-700 flex-col">
-                <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                    <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">♟️ Chess App</h1>
-                </div>
-                <nav className="p-4 space-y-2 flex-grow">
-                    <NavItem name="Dashboard" />
-                    <NavItem name="Player Stats" />
-                    <NavItem name="Game Analysis" />
-                </nav>
-                <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-                    <button onClick={toggleTheme} className="w-full flex items-center justify-center p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-                        {theme === 'light' ? <MoonIcon /> : <SunIcon />}
-                        <span className="ml-2">Switch Theme</span>
-                    </button>
-                </div>
-            </aside> */}
-
             {/* Main Content */}
-            {/* Adjusted padding to always account for the fixed header */}
-            <main className="flex-1 overflow-y-auto p-8 pt-24">
+            {/* Adjust margin-top for header height, margin-left for header width */}
+            <main className="flex-1 overflow-y-auto p-8 pt-16 pl-48"> {/* pt-16 to clear 40px header + some extra, pl-48 to clear 40px fixed header. (w-40 = 160px) -> p-40/160px */}
                 {renderTab()}
             </main>
         </div>

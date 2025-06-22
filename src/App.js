@@ -231,7 +231,6 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
                     fetch(`https://api.chess.com/pub/player/${selectedPlayer}/stats`).then(res => res.json()),
                     fetch(`https://api.chess.com/pub/player/${selectedPlayer}`).then(res => res.json())
                 ]);
-
                 setPlayerData({ stats, profile });
             } catch (error) {
                 console.error("Failed to fetch player data:", error);
@@ -242,8 +241,6 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
 
         fetchAllPlayerData();
     }, [selectedPlayer, allOpeningStats]);
-
-    const chartColor = theme === 'dark' ? '#9ca3af' : '#9e9e9e';
 
     const getWinRate = (record) => {
         const wins = record?.win || 0;
@@ -256,48 +253,6 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
         return `${winPct.toFixed(1)}%`;
     };
 
-    const OpeningChart = ({ data, color, title }) => {
-        if (!data || data.length === 0) {
-            return (
-                <div>
-                    <h3 className="text-lg font-semibold text-center mb-2 text-gray-800 dark:text-gray-200">{title}</h3>
-                    <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">No opening data available.</div>
-                </div>
-            );
-        }
-        return (
-            <div>
-                <h3 className="text-lg font-semibold text-center mb-2 text-gray-800 dark:text-gray-200">{title}</h3>
-                <div style={{ height: '250px' }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart
-                            data={data}
-                            layout="vertical"
-                            margin={{
-                                top: 5,
-                                right: 20,
-                                left: window.innerWidth < 768 ? 60 : 120,
-                                bottom: 5
-                            }}
-                        >
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis type="number" dataKey="games_played" stroke={chartColor} />
-                            <YAxis type="category" dataKey="opening_name" width={120} stroke={chartColor} tick={{ fontSize: 12 }} />
-                            <Tooltip contentStyle={{ backgroundColor: theme === 'dark' ? '#1f2937' : '#ffffff' }} formatter={(value, name, props) => {
-                                if (name === "games_played") {
-                                    const { white_wins, draws } = props.payload;
-                                    return `${value} (W: ${white_wins}, L: ${props.payload.losses}, D: ${draws})`;
-                                }
-                                return value;
-                            }} />
-                            <Bar dataKey="games_played" fill={color} />
-                        </BarChart>
-                    </ResponsiveContainer>
-                </div>
-            </div>
-        );
-    };
-
     const StatCard = ({ title, rating, record }) => (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 text-center">
             <h3 className="text-xl font-semibold text-gray-600 dark:text-gray-400">{title}</h3>
@@ -306,6 +261,47 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
             <p className="text-sm mt-1 text-indigo-500 dark:text-indigo-300 font-semibold">Win Rate: {getWinRate(record)}</p>
         </div>
     );
+
+    const FavoriteOpeningsTable = ({ data, title }) => {
+        if (!data || data.length === 0) {
+            return (
+                <div>
+                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">{title}</h3>
+                    <div className="text-gray-500 dark:text-gray-400">No opening data available.</div>
+                </div>
+            );
+        }
+
+        return (
+            <div className="overflow-x-auto mb-6">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">{title}</h3>
+                <table className="min-w-full table-auto border-collapse">
+                    <thead>
+                        <tr className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm uppercase text-left">
+                            <th className="px-4 py-2">Opening</th>
+                            <th className="px-4 py-2">Color</th>
+                            <th className="px-4 py-2">Games</th>
+                            <th className="px-4 py-2">Wins</th>
+                            <th className="px-4 py-2">Draws</th>
+                            <th className="px-4 py-2">Losses</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {data.map((row, idx) => (
+                            <tr key={idx} className="border-t border-gray-300 dark:border-gray-600 text-sm text-gray-800 dark:text-gray-100">
+                                <td className="px-4 py-2">{row.opening_name}</td>
+                                <td className="px-4 py-2 capitalize">{row.color}</td>
+                                <td className="px-4 py-2">{row.games_played}</td>
+                                <td className="px-4 py-2">{row.white_wins || row.black_wins || 0}</td>
+                                <td className="px-4 py-2">{row.draws}</td>
+                                <td className="px-4 py-2">{row.losses}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        );
+    };
 
     return (
         <div>
@@ -363,18 +359,19 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
 
                     <div className="mt-10 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
                         <h2 className="text-2xl font-semibold mb-4 text-gray-700 dark:text-gray-300">Favorite Openings</h2>
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                            <OpeningChart
-                                title="As White"
-                                data={allOpeningStats.filter(s => s.player === FRIENDS.find(f => f.username === selectedPlayer)?.name && s.color === 'white')}
-                                color="#8884d8"
-                            />
-                            <OpeningChart
-                                title="As Black"
-                                data={allOpeningStats.filter(s => s.player === FRIENDS.find(f => f.username === selectedPlayer)?.name && s.color === 'black')}
-                                color="#82ca9d"
-                            />
-                        </div>
+
+                        <FavoriteOpeningsTable
+                            title="Favorite Openings as White"
+                            data={allOpeningStats.filter(s =>
+                                s.player === FRIENDS.find(f => f.username === selectedPlayer)?.name && s.color === 'white'
+                            )}
+                        />
+                        <FavoriteOpeningsTable
+                            title="Favorite Openings as Black"
+                            data={allOpeningStats.filter(s =>
+                                s.player === FRIENDS.find(f => f.username === selectedPlayer)?.name && s.color === 'black'
+                            )}
+                        />
                     </div>
                 </>
             ) : (
@@ -383,6 +380,7 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
         </div>
     );
 }
+
 
 function GameAnalysis() {
     const [pgn, setPgn] = useState('');

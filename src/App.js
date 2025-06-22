@@ -366,7 +366,7 @@ function GameAnalysis() {
                 const ecoFiles = ['A', 'B', 'C', 'D', 'E'];
                 const allOpenings = {};
                 for (const file of ecoFiles) {
-                    const response = await fetch(`/eco${file}.json`);
+                    const response = await fetch(`${process.env.PUBLIC_URL}/eco${file}.json`);
                     const data = await response.json();
                     data.forEach(opening => {
                         allOpenings[opening.pgn] = opening.name;
@@ -418,10 +418,14 @@ function GameAnalysis() {
                                     scoreValue = `M${scoreValue}`;
                                 }
                                 
-                                const moveResult = tempGame.move(firstMove, { sloppy: true });
-                                if (moveResult) {
-                                    finalTopMoves[pvIndex] = { san: moveResult.san, score: scoreValue };
-                                    tempGame.undo();
+                                try {
+                                    const moveResult = tempGame.move(firstMove, { sloppy: true });
+                                    if (moveResult) {
+                                        finalTopMoves[pvIndex] = { san: moveResult.san, score: scoreValue };
+                                        tempGame.undo();
+                                    }
+                                } catch (e) {
+                                    // Ignore invalid moves from engine
                                 }
                             }
                         }

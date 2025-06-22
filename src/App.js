@@ -25,7 +25,7 @@ const MANUAL_INITIAL_RATINGS = {
 
 // --- Theme and Utility Hooks ---
 const useTheme = () => {
-    const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
+    const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
     useEffect(() => {
         const root = window.document.documentElement;
         root.classList.remove(theme === 'light' ? 'dark' : 'light');

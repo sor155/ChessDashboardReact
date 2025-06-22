@@ -346,8 +346,8 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
     );
 }
 
-// --- Helper Component for Game Info (moved outside for clarity) ---
-function GameInfo({ data }) {
+// --- Helper Component for Game Info ---
+function GameInfo({ data, opening }) {
     if (!data) return null;
     return (
         <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md mt-4 text-center">
@@ -360,6 +360,11 @@ function GameInfo({ data }) {
             <p className="text-sm text-gray-600 dark:text-gray-400">
                 Time Control: {data.timeControl}
             </p>
+            {opening && (
+                <p className="text-sm text-indigo-400 font-semibold mt-2">
+                    Opening: {opening}
+                </p>
+            )}
         </div>
     );
 }
@@ -634,28 +639,6 @@ function GameAnalysis() {
             <div className="w-full bg-gray-700 rounded-full h-6 dark:bg-gray-800 my-2 relative overflow-hidden">
                 <div className={`${barColor} h-full absolute top-0 left-0 transition-all duration-300 ease-in-out`} style={{ width: `${percentage}%` }} />
                  <div className="absolute inset-0 flex items-center justify-center text-sm font-bold text-black dark:text-white mix-blend-difference">Eval: {score}</div>
-            </div>
-        );
-    };
-
-    const GameInfo = ({ data, opening }) => {
-        if (!data) return null;
-        return (
-            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md mt-4 text-center">
-                <p className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                    {data.white} vs {data.black}
-                </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Result: {data.result}
-                </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Time Control: {data.timeControl}
-                </p>
-                {opening && (
-                    <p className="text-sm text-indigo-400 font-semibold mt-2">
-                        Opening: {opening}
-                    </p>
-                )}
             </div>
         );
     };

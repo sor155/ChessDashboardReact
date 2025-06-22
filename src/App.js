@@ -243,21 +243,24 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
         return (
             <div>
                 <h3 className="text-lg font-semibold text-center mb-2 text-gray-800 dark:text-gray-200">{title}</h3>
-                <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={data} layout="vertical" margin={{ top: 5, right: 20, left: 120, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis type="number" dataKey="games_played" stroke={chartColor} />
-                        <YAxis type="category" dataKey="opening_name" width={120} stroke={chartColor} tick={{ fontSize: 12 }} />
-                        <Tooltip contentStyle={{ backgroundColor: theme === 'dark' ? '#1f2937' : '#ffffff' }} formatter={(value, name, props) => {
-                            if (name === "games_played") {
-                                const { white_wins, draws } = props.payload;
-                                return `${value} (W: ${white_wins}, L: ${props.payload.losses}, D: ${draws})`;
-                            }
-                            return value;
-                        }} />
-                        <Bar dataKey="games_played" fill={color} />
-                    </BarChart>
-                </ResponsiveContainer>
+                {/* Added explicit height to the parent div for ResponsiveContainer */}
+                <div style={{ height: '250px' }}> 
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={data} layout="vertical" margin={{ top: 5, right: 20, left: 120, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis type="number" dataKey="games_played" stroke={chartColor} />
+                            <YAxis type="category" dataKey="opening_name" width={120} stroke={chartColor} tick={{ fontSize: 12 }} />
+                            <Tooltip contentStyle={{ backgroundColor: theme === 'dark' ? '#1f2937' : '#ffffff' }} formatter={(value, name, props) => {
+                                if (name === "games_played") {
+                                    const { white_wins, draws } = props.payload;
+                                    return `${value} (W: ${white_wins}, L: ${props.payload.losses}, D: ${draws})`;
+                                }
+                                return value;
+                            }} />
+                            <Bar dataKey="games_played" fill={color} />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </div>
             </div>
         );
     }

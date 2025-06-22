@@ -367,6 +367,9 @@ function GameAnalysis() {
                 const allOpenings = {};
                 for (const file of ecoFiles) {
                     const response = await fetch(`${process.env.PUBLIC_URL}/eco${file}.json`);
+                    if (!response.ok) {
+                        throw new Error(`Failed to load eco${file}.json`);
+                    }
                     const data = await response.json();
                     data.forEach(opening => {
                         allOpenings[opening.pgn] = opening.name;
@@ -397,6 +400,7 @@ function GameAnalysis() {
                 const onMessage = (event) => {
                     const message = String(event.data);
                     if (message.startsWith('bestmove')) {
+                        stockfish.current.removeEventListener('message', onMessage);
                         const lines = message.split('\n');
                         const finalTopMoves = [];
                         const tempGame = new Chess(fen);
@@ -426,13 +430,12 @@ function GameAnalysis() {
                                             tempGame.undo();
                                         }
                                     } catch(e) {
-                                        // Ignore invalid moves
+                                        // Ignore invalid moves from wasm
                                     }
                                 }
                             }
                         });
                         
-                        stockfish.current.removeEventListener('message', onMessage);
                         analysisCache.current[fen] = finalTopMoves;
                         resolve(finalTopMoves);
                     }
@@ -451,7 +454,7 @@ function GameAnalysis() {
             const worker = new Worker(`${process.env.PUBLIC_URL}/stockfish-17-lite-single.js`);
             stockfish.current = worker;
 
-            worker.addEventListener('message', (event) => {
+            const onMessageHandler = (event) => {
                 if (String(event.data) === 'uciok') {
                     worker.postMessage('setoption name MultiPV value 3');
                     worker.postMessage('isready');
@@ -459,30 +462,34 @@ function GameAnalysis() {
                 if (String(event.data) === 'readyok') {
                     setEngineStatus('Ready');
                 }
-            });
+            };
             
-            worker.addEventListener('error', (e) => {
-                setEngineStatus(`Engine error. Please reload.`);
+            const onErrorHandler = (e) => {
                 console.error("Stockfish worker error:", e);
+                setEngineStatus(`Engine error. Please reload.`);
                 worker.terminate();
-            });
+            };
+
+            worker.addEventListener('message', onMessageHandler);
+            worker.addEventListener('error', onErrorHandler);
 
             worker.postMessage('uci');
+            
+            return () => {
+                worker.removeEventListener('message', onMessageHandler);
+                worker.removeEventListener('error', onErrorHandler);
+                worker.terminate();
+            };
         };
 
-        initStockfish();
-
-        return () => {
-            if (stockfish.current) {
-                stockfish.current.terminate();
-            }
-        };
+        const cleanup = initStockfish();
+        return cleanup;
     }, []);
 
     const handleLoadPgn = () => {
         setPgnError('');
-        const newGame = new Chess();
         try {
+            const newGame = new Chess();
             let pgnString = pgn.trim();
             const tagRegex = /\[\s*(\w+)\s*"([^"]*)"\s*\]/g;
             const tags = pgnString.match(tagRegex) || [];
@@ -541,7 +548,11 @@ function GameAnalysis() {
         
         const gameForPgn = new Chess();
         for(let i=0; i<=index; i++){
-            gameForPgn.move(fullHistory[i], {sloppy: true});
+            try {
+                gameForPgn.move(fullHistory[i], {sloppy: true});
+            } catch(e) {
+                // ignore errors for opening lookup
+            }
         }
         const currentPgn = gameForPgn.pgn({ maxWidth: 5, newline: '' });
         const openingName = ecoData.current[currentPgn];

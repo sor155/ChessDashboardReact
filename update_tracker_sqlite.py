@@ -67,7 +67,7 @@ def get_baseline_rating(conn, player, cat):
 
 def get_current_ratings_from_db(conn):
     """Reads the last known ratings from the database."""
-    ratings = defaultdict(dict)
+    ratings = {} # Change defaultdict(dict) to a regular dictionary
     try:
         df = pd.read_sql_query("SELECT friend_name, rapid_rating, blitz_rating, bullet_rating FROM current_ratings", conn)
         for _, row in df.iterrows():
@@ -109,7 +109,8 @@ def run_update():
             new_data[name] = {'ratings': new_ratings, 'api_data': api_data}
             
             # Step 3: Compare new ratings with old ones
-            if last_ratings[name] != new_ratings:
+            # Check if player exists in last_ratings first, then compare
+            if name not in last_ratings or last_ratings[name] != new_ratings: # MODIFIED LINE
                 print(f"  Change detected for {name}.")
                 has_changed = True
 
@@ -152,6 +153,6 @@ def run_update():
             conn.executemany('INSERT INTO rating_history (timestamp, player_name, category, rating) VALUES (?,?,?,?)', history_rows_to_append)
 
     print("\n✅ SQLite database update complete!")
-
+    
 if __name__ == "__main__":
     run_update()

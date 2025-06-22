@@ -392,28 +392,28 @@ function GameAnalysis() {
         loadEcoData();
     }, []);
 
-    const generateTemplatedCommentary = useCallback((lastMoveSan, analysisAfter, analysisBefore) => {
+    const generateTemplatedCommentary = useCallback((lastMoveSan, analysisAfter, analysisBefore, moveColor) => {
         setIsGeneratingCommentary(true);
         let commentaryText = "";
-    
+
         if (!lastMoveSan || !analysisAfter || !analysisBefore || analysisAfter.length === 0 || analysisBefore.length === 0) {
             commentaryText = "Analysis data incomplete. Cannot generate commentary.";
         } else {
-            const moveColor = history[currentMove]?.color === 'w' ? 1 : -1;
+            const turn = moveColor === 'w' ? 1 : -1;
             
             const scoreToNumber = (score) => {
                 if (String(score).startsWith('M')) {
                     const mateIn = parseInt(String(score).substring(1));
-                    return (100 - Math.abs(mateIn)) * (score.startsWith('M-') ? -1 : 1);
+                    return (100 - Math.abs(mateIn)) * (score.startsWith('M-') ? -1 : 1) * turn;
                 }
                 return parseFloat(score);
             };
 
-            const currentScore = scoreToNumber(analysisAfter[0].score) * moveColor;
-            const prevScore = scoreToNumber(analysisBefore[0].score) * moveColor;
+            const currentScore = scoreToNumber(analysisAfter[0].score);
+            const prevScore = scoreToNumber(analysisBefore[0].score);
 
-            const evalChange = currentScore - prevScore;
-    
+            const evalChange = (currentScore * turn) - (prevScore * turn);
+
             let moveQuality = "";
             if (evalChange < -1.0) {
                 moveQuality = "a blunder";
@@ -430,11 +430,10 @@ function GameAnalysis() {
                 commentaryText += `The engine suggests ${analysisBefore[0].san} as the best move.`;
             }
         }
-    
+
         setCommentary(commentaryText);
         setIsGeneratingCommentary(false);
-    }, [history, currentMove]);
-    
+    }, []);
     
     const getEvaluation = useCallback((fen) => {
         return new Promise((resolve) => {
@@ -547,7 +546,7 @@ function GameAnalysis() {
 
             if (newGame.history().length === 0) throw new Error("PGN loaded, but no moves found.");
             
-            analysisCache.current = {}; // Clear cache for new game
+            analysisCache.current = {};
             const startingFen = new Chess().fen();
             setGame(new Chess(startingFen));
             setHistory(newGame.history({ verbose: true }));
@@ -581,7 +580,7 @@ function GameAnalysis() {
         const fullHistory = history.map(h => h.san);
         
         for (let i = 0; i < index; i++) {
-            tempGameForFen.move(fullHistory[i], { sloppy: true });
+             tempGameForFen.move(fullHistory[i], { sloppy: true });
         }
         const fenBefore = tempGameForFen.fen();
         

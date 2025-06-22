@@ -355,9 +355,7 @@ function GameAnalysis() {
     const [evaluation, setEvaluation] = useState('');
     const [topMoves, setTopMoves] = useState([]);
     const [engineStatus, setEngineStatus] = useState('Loading...');
-    const [commentary, setCommentary] = useState('');
     const [opening, setOpening] = useState('');
-    const [isGeneratingCommentary, setIsGeneratingCommentary] = useState(false);
     const stockfish = useRef(null);
     const analysisCache = useRef({});
     const ecoData = useRef({});
@@ -380,49 +378,6 @@ function GameAnalysis() {
             }
         };
         loadEcoData();
-    }, []);
-
-    const generateTemplatedCommentary = useCallback((lastMoveSan, analysisAfter, analysisBefore, moveColor) => {
-        setIsGeneratingCommentary(true);
-        let commentaryText = "";
-
-        if (!lastMoveSan || !analysisAfter || !analysisBefore || analysisAfter.length === 0 || analysisBefore.length === 0) {
-            commentaryText = "Analysis data incomplete. Cannot generate commentary.";
-        } else {
-            const turn = moveColor === 'w' ? 1 : -1;
-            
-            const scoreToNumber = (score) => {
-                if (String(score).startsWith('M')) {
-                    const mateIn = parseInt(String(score).substring(1));
-                    return (100 - Math.abs(mateIn)) * (score.startsWith('M-') ? -1 : 1) * turn;
-                }
-                return parseFloat(score);
-            };
-
-            const currentScore = scoreToNumber(analysisAfter[0].score);
-            const prevScore = scoreToNumber(analysisBefore[0].score);
-
-            const evalChange = (currentScore * turn) - (prevScore * turn);
-
-            let moveQuality = "";
-            if (evalChange < -1.0) {
-                moveQuality = "a blunder";
-            } else if (evalChange < -0.5) {
-                moveQuality = "an inaccuracy";
-            } else if (evalChange > 0.4) {
-                moveQuality = "an excellent move";
-            } else {
-                moveQuality = "a good move";
-            }
-            
-            commentaryText = `The move ${lastMoveSan} is ${moveQuality}. `;
-            if (lastMoveSan !== analysisBefore[0].san) {
-                commentaryText += `The engine suggests ${analysisBefore[0].san} as the best move.`;
-            }
-        }
-
-        setCommentary(commentaryText);
-        setIsGeneratingCommentary(false);
     }, []);
     
     const getEvaluation = useCallback((fen) => {
@@ -546,7 +501,6 @@ function GameAnalysis() {
                 if (analysis && analysis.length > 0) {
                     setEvaluation(analysis[0].score);
                     setTopMoves(analysis);
-                    setCommentary('This is the starting position. Make a move or navigate to see commentary.');
                 }
             });
 
@@ -557,14 +511,11 @@ function GameAnalysis() {
             setCurrentMove(-1);
             setEvaluation('');
             setTopMoves([]);
-            setCommentary('');
         }
     };
 
     const navigateToMove = useCallback(async (index) => {
         if (index < 0 || index >= history.length) return;
-        
-        setIsGeneratingCommentary(true);
 
         const tempGameForFen = new Chess();
         const fullHistory = history.map(h => h.san);
@@ -572,21 +523,14 @@ function GameAnalysis() {
         for (let i = 0; i < index; i++) {
              tempGameForFen.move(fullHistory[i], { sloppy: true });
         }
-        const fenBefore = tempGameForFen.fen();
         
         const moveResult = tempGameForFen.move(fullHistory[index], { sloppy: true });
-        if(!moveResult) {
-            setIsGeneratingCommentary(false);
-            return;
-        };
+        if(!moveResult) return;
 
         setGame(new Chess(tempGameForFen.fen()));
         setCurrentMove(index);
         
-        const [analysisBefore, analysisAfter] = await Promise.all([
-            getEvaluation(fenBefore),
-            getEvaluation(tempGameForFen.fen())
-        ]);
+        const analysisAfter = await getEvaluation(tempGameForFen.fen());
         
         const gameForPgn = new Chess();
         for(let i=0; i<=index; i++){
@@ -596,15 +540,11 @@ function GameAnalysis() {
         const openingName = ecoData.current[currentPgn];
         setOpening(openingName || '');
 
-        if (analysisAfter && analysisAfter.length > 0 && analysisBefore && analysisBefore.length > 0) {
+        if (analysisAfter && analysisAfter.length > 0) {
              setEvaluation(analysisAfter[0].score);
              setTopMoves(analysisAfter.slice(0,3));
-             generateTemplatedCommentary(moveResult.san, analysisAfter, analysisBefore, moveResult.color);
-        } else {
-            setCommentary("Could not retrieve analysis to generate commentary.");
-            setIsGeneratingCommentary(false);
         }
-    }, [history, getEvaluation, generateTemplatedCommentary]);
+    }, [history, getEvaluation]);
 
     const goToPreviousMove = useCallback(() => {
         if (currentMove === 0) { 
@@ -614,7 +554,6 @@ function GameAnalysis() {
                 if (analysis && analysis.length > 0) {
                     setEvaluation(analysis[0].score);
                     setTopMoves(analysis);
-                    setCommentary('This is the starting position. Make a move or navigate to see commentary.');
                     setOpening('');
                 }
             });
@@ -720,14 +659,6 @@ function GameAnalysis() {
                                  ) : (
                                     <p className="text-gray-500 dark:text-gray-400 mt-2">Analyzing...</p>
                                  )}
-                             </div>
-                             <div className="mt-4">
-                                <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300">Move Commentary:</h3>
-                                {isGeneratingCommentary ? (
-                                    <p className="text-gray-500 dark:text-gray-400 mt-2">Generating commentary...</p>
-                                ) : (
-                                    <p className="text-gray-600 dark:text-gray-300 mt-2">{commentary || 'No commentary available.'}</p>
-                                )}
                              </div>
                         </div>
                     )}

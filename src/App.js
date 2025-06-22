@@ -346,6 +346,24 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
     );
 }
 
+// --- Helper Component for Game Info (moved outside for clarity) ---
+function GameInfo({ data }) {
+    if (!data) return null;
+    return (
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md mt-4 text-center">
+            <p className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                {data.white} vs {data.black}
+            </p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+                Result: {data.result}
+            </p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+                Time Control: {data.timeControl}
+            </p>
+        </div>
+    );
+}
+
 function GameAnalysis() {
     const [pgn, setPgn] = useState('');
     const [pgnError, setPgnError] = useState('');
@@ -356,8 +374,7 @@ function GameAnalysis() {
     const [topMoves, setTopMoves] = useState([]);
     const [engineStatus, setEngineStatus] = useState('Loading...');
     const [opening, setOpening] = useState('');
-    // *** NEW STATE FOR GAME METADATA ***
-    const [gameData, setGameData] = useState(null);
+    const [gameData, setGameData] = useState(null); // State for game metadata
     const stockfish = useRef(null);
     const analysisCache = useRef({});
     const ecoData = useRef({});
@@ -375,7 +392,7 @@ function GameAnalysis() {
                     });
                 }
                 ecoData.current = allOpenings;
-            } catch (error) => {
+            } catch (error) {
                 console.error("Failed to load ECO data:", error);
             }
         };
@@ -523,7 +540,7 @@ function GameAnalysis() {
 
             if (newGame.history().length === 0) throw new Error("PGN loaded, but no moves found.");
 
-            // *** EXTRACT AND SET GAME METADATA ***
+            // Extract and set game metadata from PGN headers
             const header = newGame.header();
             setGameData({
                 white: header.White || 'Unknown',
@@ -622,25 +639,6 @@ function GameAnalysis() {
         );
     };
 
-    // *** NEW COMPONENT TO DISPLAY GAME INFO ***
-    const GameInfo = ({ data }) => {
-        if (!data) return null;
-        return (
-            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md mt-4 text-center">
-                <p className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                    {data.white} vs {data.black}
-                </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Result: {data.result}
-                </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Time Control: {data.timeControl}
-                </p>
-            </div>
-        );
-    };
-
-
     return (
         <div>
             <h1 className="text-4xl font-bold mb-8 text-gray-800 dark:text-gray-200">Chess Analysis</h1>
@@ -653,7 +651,6 @@ function GameAnalysis() {
                     />
                     {isGameLoaded && <EvaluationBar score={evaluation} />}
                     {opening && <div className="text-center mt-2 text-indigo-400 font-semibold">{opening}</div>}
-                    {/* *** RENDER THE NEW GAME INFO COMPONENT *** */}
                     <GameInfo data={gameData} />
                 </div>
                 <div className="w-full lg:flex-1 space-y-6">

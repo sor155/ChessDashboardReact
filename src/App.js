@@ -128,7 +128,7 @@ function Dashboard({ currentRatings, ratingHistory, theme }) {
                                 <tr key={player.friend_name} className="dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                                     <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{player.friend_name}</td>
                                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
-                                        {player.rapid_rating}
+                                        {player.rapid_rating} 
                                         <span className={player.rapid_change >= 0 ? 'text-green-500' : 'text-red-500'}>
                                             ({player.rapid_change >= 0 ? '+' : ''}{player.rapid_change})
                                         </span>

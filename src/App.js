@@ -371,44 +371,40 @@ function GameAnalysis() {
     const messageHistory = useRef([]);
     const analysisCache = useRef({});
 
-    const generateTemplatedCommentary = useCallback((lastMoveSan, analysisAfter, analysisBefore, moveColor) => {
+    const generateTemplatedCommentary = useCallback((lastMoveSan, analysisAfter, analysisBefore) => {
         setIsGeneratingCommentary(true);
         let commentaryText = "";
 
         if (!lastMoveSan || !analysisAfter || !analysisBefore || analysisAfter.length === 0 || analysisBefore.length === 0) {
             commentaryText = "Analysis data incomplete. Cannot generate commentary.";
-            setIsGeneratingCommentary(false);
-            setCommentary(commentaryText);
-            return;
-        }
-
-        const turn = moveColor === 'w' ? 1 : -1;
-        
-        const currentScore = parseFloat(analysisAfter[0].score) * turn;
-        const prevScore = parseFloat(analysisBefore[0].score) * turn;
-        
-        const evalChange = currentScore - prevScore;
-
-        let moveQuality = "";
-        if (evalChange < -1.0) {
-            moveQuality = "a blunder";
-        } else if (evalChange < -0.5) {
-            moveQuality = "an inaccuracy";
-        } else if (evalChange > 0.4) {
-            moveQuality = "an excellent move";
         } else {
-            moveQuality = "a good move";
-        }
-        
-        commentaryText = `The move ${lastMoveSan} is ${moveQuality}. `;
-        if (lastMoveSan !== analysisBefore[0].san) {
-            commentaryText += `The engine suggests ${analysisBefore[0].san} as the best move.`;
+            const moveColor = history[currentMove]?.color === 'w' ? 1 : -1;
+            const currentScore = parseFloat(analysisAfter[0].score) * moveColor;
+            const prevScore = parseFloat(analysisBefore[0].score) * moveColor;
+
+            const evalChange = currentScore - prevScore;
+
+            let moveQuality = "";
+            if (evalChange < -1.0) {
+                moveQuality = "a blunder";
+            } else if (evalChange < -0.5) {
+                moveQuality = "an inaccuracy";
+            } else if (evalChange > 0.4) {
+                moveQuality = "an excellent move";
+            } else {
+                moveQuality = "a good move";
+            }
+            
+            commentaryText = `The move ${lastMoveSan} is ${moveQuality}. `;
+            if (lastMoveSan !== analysisBefore[0].san) {
+                commentaryText += `The engine suggests ${analysisBefore[0].san} as the best move.`;
+            }
         }
 
         setCommentary(commentaryText);
         setIsGeneratingCommentary(false);
-    }, []);
-
+    }, [history, currentMove]);
+    
     const getEvaluation = useCallback((fen) => {
         return new Promise((resolve) => {
             if (analysisCache.current[fen]) {
@@ -545,6 +541,8 @@ function GameAnalysis() {
 
     const navigateToMove = useCallback(async (index) => {
         if (index < 0 || index >= history.length) return;
+        
+        setIsGeneratingCommentary(true); // Set loading state for commentary
 
         const tempGame = new Chess();
         const fullHistory = history.map(h => h.san);
@@ -556,18 +554,24 @@ function GameAnalysis() {
         fenBefore = tempGame.fen();
         
         const moveResult = tempGame.move(fullHistory[index]);
-        if(!moveResult) return; // Should not happen with valid PGN
+        if(!moveResult) return;
 
         setGame(tempGame);
         setCurrentMove(index);
         
-        const analysisAfter = await getEvaluation(tempGame.fen());
-        const analysisBefore = await getEvaluation(fenBefore);
+        // Await both analyses to complete
+        const [analysisBefore, analysisAfter] = await Promise.all([
+            getEvaluation(fenBefore),
+            getEvaluation(tempGame.fen())
+        ]);
         
         if (analysisAfter && analysisAfter.length > 0 && analysisBefore && analysisBefore.length > 0) {
              setEvaluation(analysisAfter[0].score);
              setTopMoves(analysisAfter.slice(0,3));
              generateTemplatedCommentary(moveResult.san, analysisAfter, analysisBefore, moveResult.color);
+        } else {
+            setCommentary("Could not retrieve analysis to generate commentary.");
+            setIsGeneratingCommentary(false);
         }
     }, [history, getEvaluation, generateTemplatedCommentary]);
 

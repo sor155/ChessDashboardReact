@@ -365,38 +365,75 @@ function GameAnalysis() {
     const [evaluation, setEvaluation] = useState('');
     const [topMoves, setTopMoves] = useState([]);
     const [engineStatus, setEngineStatus] = useState('Loading...');
+    const [commentary, setCommentary] = useState('');
+    const [isGeneratingCommentary, setIsGeneratingCommentary] = useState(false);
     const stockfish = useRef(null);
     const currentGameForEngine = useRef(new Chess());
 
-    const getEvaluation = useCallback((fen) => {
+    const getAiCommentary = useCallback(async (fen, lastMoveSan, stockfishEval, stockfishTopMoves) => {
+        setIsGeneratingCommentary(true);
+        setCommentary('');
+        let chatHistory = [];
+        const prompt = `Analyze the following chess move and provide a brief, insightful commentary.
+        
+        **Context:**
+        - **Game State (FEN):** ${fen}
+        - **The move just played:** ${lastMoveSan}
+        - **Stockfish Evaluation:** ${stockfishEval}
+        - **Stockfish's Top 3 Suggested Moves:** ${stockfishTopMoves.map(m => m.san).join(', ')}
+
+        **Instructions:**
+        1.  Act as an expert chess commentator.
+        2.  Briefly explain the purpose of the move '${lastMoveSan}'.
+        3.  State whether the move was good, an inaccuracy, a blunder, or excellent, using the engine's evaluation as a guide.
+        4.  Mention the best move if it's different from the one played.
+        5.  Keep the commentary concise (2-3 sentences).`;
+        
+        chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+        const payload = { contents: chatHistory };
+        const apiKey = "" 
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+        
+        try {
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const result = await response.json();
+             if (result.candidates && result.candidates.length > 0 &&
+                result.candidates[0].content && result.candidates[0].content.parts &&
+                result.candidates[0].content.parts.length > 0) {
+                const text = result.candidates[0].content.parts[0].text;
+                setCommentary(text);
+            } else {
+                setCommentary("Could not generate commentary for this move.");
+            }
+        } catch(error) {
+            console.error("Error generating commentary:", error);
+            setCommentary("An error occurred while generating commentary.");
+        } finally {
+            setIsGeneratingCommentary(false);
+        }
+    }, []);
+
+    const getEvaluation = useCallback((fen, lastMoveSan) => {
         if (engineStatus !== 'Ready' || !stockfish.current) return;
         setEvaluation('...');
         setTopMoves([]);
-        stockfish.current.postMessage(`position fen ${fen}`);
-        stockfish.current.postMessage('go depth 15');
-    }, [engineStatus]);
-
-    useEffect(() => {
-        const STOCKFISH_URL = process.env.PUBLIC_URL + '/stockfish-17-lite-single.js';
-        let worker;
-        try {
-            worker = new Worker(STOCKFISH_URL);
-            stockfish.current = worker;
-            
-            let currentTopMoves = [];
-
-            const onMessage = (event) => {
-                const message = String(event.data);
-                
-                if (message === 'readyok') {
-                    setEngineStatus('Ready');
-                    worker.postMessage('setoption name MultiPV value 3');
-                } else if (message.startsWith('uciok')) {
-                    worker.postMessage('isready');
-                } else if (message.startsWith('info depth') && message.includes('multipv')) {
-                    const multipvMatch = message.match(/multipv (\d+)/);
-                    const scoreMatch = message.match(/score (cp|mate) (-?\d+)/);
-                    const pvMatch = message.match(/ pv (.+)/);
+        setCommentary('');
+        stockfish.current.onmessage = (event) => {
+            const message = String(event.data);
+            if (message.startsWith('info depth') && message.includes('multipv')) {
+                 // The logic to parse multipv will be handled when bestmove is received.
+            } else if (message.startsWith('bestmove')) {
+                // Now parse all the info lines we got before this
+                const finalTopMoves = [];
+                const infoLines = stockfish.current.history || []; // Assuming worker stores history of messages
+                 infoLines.forEach(line => {
+                    const multipvMatch = line.match(/multipv (\d+)/);
+                    const scoreMatch = line.match(/score (cp|mate) (-?\d+)/);
+                    const pvMatch = line.match(/ pv (.+)/);
 
                     if (multipvMatch && scoreMatch && pvMatch) {
                         const pvIndex = parseInt(multipvMatch[1], 10) - 1;
@@ -410,26 +447,51 @@ function GameAnalysis() {
                             scoreValue = `M${scoreValue}`;
                         }
                         
-                        const tempGame = new Chess(currentGameForEngine.current.fen());
+                        const tempGame = new Chess(fen);
                         const moveResult = tempGame.move(firstMove);
                         if (moveResult) {
-                            currentTopMoves[pvIndex] = {san: moveResult.san, score: scoreValue};
-
-                            // Update state only for the first line initially to keep evaluation responsive
-                            if(pvIndex === 0) {
-                                setEvaluation(scoreValue);
-                            }
+                            finalTopMoves[pvIndex] = {san: moveResult.san, score: scoreValue};
                         }
                     }
-                } else if (message.startsWith('bestmove')) {
-                    setTopMoves([...currentTopMoves].slice(0,3)); // Update with all collected moves
-                    currentTopMoves = []; // Reset for next analysis
+                });
+                
+                if(finalTopMoves.length > 0) {
+                    setEvaluation(finalTopMoves[0].score);
+                    setTopMoves(finalTopMoves);
+                    if(lastMoveSan) {
+                        getAiCommentary(fen, lastMoveSan, finalTopMoves[0].score, finalTopMoves);
+                    }
+                }
+                stockfish.current.history = []; // Clear history for next command
+            }
+        };
+        stockfish.current.history = []; // Ensure history is clear before sending command
+        stockfish.current.postMessage(`position fen ${fen}`);
+        stockfish.current.postMessage('go depth 15');
+    }, [engineStatus, getAiCommentary]);
+
+    useEffect(() => {
+        const STOCKFISH_URL = process.env.PUBLIC_URL + '/stockfish-17-lite-single.js';
+        let worker;
+        try {
+            worker = new Worker(STOCKFISH_URL);
+            stockfish.current = worker;
+            stockfish.current.history = [];
+
+            const onMessage = (event) => {
+                const message = String(event.data);
+                stockfish.current.history.push(message); // Store all messages
+                
+                if (message === 'readyok') {
+                    setEngineStatus('Ready');
+                    worker.postMessage('setoption name MultiPV value 3');
+                } else if (message.startsWith('uciok')) {
+                    worker.postMessage('isready');
                 }
             };
-
             worker.addEventListener('message', onMessage);
             worker.onerror = (e) => {
-                 setEngineStatus(`Error: Stockfish failed. Ensure stockfish-17-lite-single.js is in /public.`);
+                 setEngineStatus(`Error: Stockfish failed.`);
                  console.error("Stockfish worker error:", e);
             };
             worker.postMessage('uci');
@@ -458,7 +520,6 @@ function GameAnalysis() {
                 .replace(/\$\d+/g, '')
                 .replace(/[\r\n\t]+/g, ' ')
                 .trim();
-
             const cleanedPgn = tags.join('\n') + '\n\n' + cleanedMovetext;
             newGame.loadPgn(cleanedPgn);
 
@@ -469,7 +530,7 @@ function GameAnalysis() {
             currentGameForEngine.current = new Chess(startingFen);
             setHistory(newGame.history({ verbose: true }));
             setCurrentMove(-1);
-            getEvaluation(startingFen);
+            getEvaluation(startingFen, null);
 
         } catch (e) {
             setPgnError(e.message || "Error loading PGN.");
@@ -478,19 +539,26 @@ function GameAnalysis() {
             setCurrentMove(-1);
             setEvaluation('');
             setTopMoves([]);
+            setCommentary('');
         }
     };
 
     const navigateToMove = useCallback((index) => {
         const tempGame = new Chess();
         const fullHistory = history.map(h => h.san);
+        let lastMoveSan = null;
         for (let i = 0; i <= index; i++) {
-            if (fullHistory[i]) tempGame.move(fullHistory[i]);
+            if (fullHistory[i]) {
+                const moveResult = tempGame.move(fullHistory[i]);
+                if(i === index){
+                    lastMoveSan = moveResult.san;
+                }
+            }
         }
         setGame(tempGame);
         currentGameForEngine.current = new Chess(tempGame.fen());
         setCurrentMove(index);
-        getEvaluation(tempGame.fen());
+        getEvaluation(tempGame.fen(), lastMoveSan);
     }, [history, getEvaluation]);
 
     const goToPreviousMove = useCallback(() => {
@@ -590,6 +658,14 @@ function GameAnalysis() {
                                  ) : (
                                     <p className="text-gray-500 dark:text-gray-400 mt-2">Analyzing...</p>
                                  )}
+                             </div>
+                             <div className="mt-4">
+                                <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300">Move Commentary:</h3>
+                                {isGeneratingCommentary ? (
+                                    <p className="text-gray-500 dark:text-gray-400 mt-2">Generating commentary...</p>
+                                ) : (
+                                    <p className="text-gray-600 dark:text-gray-300 mt-2">{commentary || 'No commentary available.'}</p>
+                                )}
                              </div>
                         </div>
                     )}

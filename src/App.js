@@ -256,10 +256,11 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
                 <ol className="list-decimal ml-6 space-y-1 text-gray-700 dark:text-gray-200">
                     {top5.map((opening, idx) => {
                         const wins = opening.white_wins || opening.black_wins || 0;
+                        const winRate = opening.games_played > 0 ? ((wins / opening.games_played) * 100).toFixed(1) : "0.0";
                         return (
                             <li key={idx}>
                                 <span className="font-medium">{opening.opening_name}</span> — {opening.games_played} games (
-                                {wins}W / {opening.losses}L / {opening.draws}D)
+                                {wins}W / {opening.losses}L / {opening.draws}D) - <span className="font-semibold">{winRate}% winrate</span>
                             </li>
                         );
                     })}

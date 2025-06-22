@@ -370,55 +370,34 @@ function GameAnalysis() {
     const stockfish = useRef(null);
     const messageHistory = useRef([]);
 
-    const getAiCommentary = useCallback(async (fen, lastMoveSan, stockfishEval, stockfishTopMoves) => {
-        if (!lastMoveSan) {
-            setCommentary('This is the starting position. Load a PGN and make a move to begin analysis.');
-            return;
-        }
-        setIsGeneratingCommentary(true);
-        setCommentary('');
-        let chatHistory = [];
-        const prompt = `Analyze the following chess move and provide a brief, insightful commentary.
-        
-        **Context:**
-        - **Game State (FEN):** ${fen}
-        - **The move just played:** ${lastMoveSan}
-        - **Stockfish Evaluation:** ${stockfishEval}
-        - **Stockfish's Top 3 Suggested Moves:** ${stockfishTopMoves.map(m => m.san).join(', ')}
+    const generateTemplatedCommentary = useCallback((lastMoveSan, playerEval, bestMove) => {
+      setIsGeneratingCommentary(true);
+      
+      let commentaryText = "";
+      if (!lastMoveSan) {
+        commentaryText = "This is the starting position. Load a PGN and make a move to begin analysis.";
+      } else {
+          const evalDiff = Math.abs(parseFloat(playerEval) - parseFloat(bestMove.score));
+          let moveQuality = "";
 
-        **Instructions:**
-        1.  Act as an expert chess commentator.
-        2.  Briefly explain the purpose of the move '${lastMoveSan}'.
-        3.  State whether the move was good, an inaccuracy, a blunder, or excellent, using the engine's evaluation as a guide.
-        4.  Mention the best move if it's different from the one played.
-        5.  Keep the commentary concise (2-3 sentences).`;
-        
-        chatHistory.push({ role: "user", parts: [{ text: prompt }] });
-        const payload = { contents: chatHistory };
-        const apiKey = "" 
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-        
-        try {
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            const result = await response.json();
-             if (result.candidates && result.candidates.length > 0 &&
-                result.candidates[0].content && result.candidates[0].content.parts &&
-                result.candidates[0].content.parts.length > 0) {
-                const text = result.candidates[0].content.parts[0].text;
-                setCommentary(text);
-            } else {
-                setCommentary("Could not generate commentary for this move.");
-            }
-        } catch(error) {
-            console.error("Error generating commentary:", error);
-            setCommentary("An error occurred while generating commentary.");
-        } finally {
-            setIsGeneratingCommentary(false);
-        }
+          if (evalDiff > 1.5) {
+              moveQuality = "a blunder";
+          } else if (evalDiff > 0.7) {
+              moveQuality = "an inaccuracy";
+          } else if (playerEval >= bestMove.score) {
+              moveQuality = "an excellent move";
+          } else {
+              moveQuality = "a good move";
+          }
+
+          commentaryText = `The move ${lastMoveSan} is ${moveQuality}. `;
+          if (lastMoveSan !== bestMove.san) {
+              commentaryText += `The engine suggests ${bestMove.san} with an evaluation of ${bestMove.score}.`;
+          }
+      }
+
+      setCommentary(commentaryText);
+      setIsGeneratingCommentary(false);
     }, []);
 
     const getEvaluation = useCallback((fen, lastMoveSan) => {
@@ -465,7 +444,7 @@ function GameAnalysis() {
                     setEvaluation(finalTopMoves[0].score);
                     setTopMoves(finalTopMoves.slice(0,3));
                     if(lastMoveSan) {
-                        getAiCommentary(fen, lastMoveSan, finalTopMoves[0].score, finalTopMoves);
+                        generateTemplatedCommentary(lastMoveSan, finalTopMoves[0].score, finalTopMoves[0]);
                     } else {
                         setCommentary('This is the starting position. Make a move or navigate to see commentary.');
                     }
@@ -479,7 +458,7 @@ function GameAnalysis() {
         messageHistory.current = [];
         stockfish.current.postMessage(`position fen ${fen}`);
         stockfish.current.postMessage('go depth 15');
-    }, [engineStatus, getAiCommentary]);
+    }, [engineStatus, generateTemplatedCommentary]);
 
     useEffect(() => {
         const STOCKFISH_URL = process.env.PUBLIC_URL + '/stockfish-17-lite-single.js';

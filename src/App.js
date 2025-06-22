@@ -585,65 +585,99 @@ function GameAnalysis() {
             <h1 className="text-4xl font-bold mb-8 text-gray-800 dark:text-gray-200">Chess Analysis</h1>
 
             <div className="flex flex-col lg:flex-row gap-8 items-start">
+                {/* Left Column: Chessboard and Evaluation */}
                 <div className="w-full lg:w-auto">
-                    {/* Dynamic chessboard width */}
                     <Chessboard position={game.fen()} boardWidth={Math.min(400, window.innerWidth * 0.9)} />
                     {isGameLoaded && <EvaluationBar score={evaluation} />}
                 </div>
-                <div className="w-full lg:flex-1 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
-                    <h2 className="text-2xl font-semibold mb-4 text-gray-700 dark:text-gray-300">PGN Loader</h2>
-                    <div className="flex items-center mb-2">
-                        <span className="font-semibold mr-2 text-gray-700 dark:text-gray-300">Engine Status:</span>
-                        <span className={`px-2 py-1 text-xs font-bold rounded-full ${engineStatus === 'Ready' ? 'bg-green-200 text-green-800' : 'bg-yellow-200 text-yellow-800'}`}>{engineStatus}</span>
-                    </div>
-                    <textarea
-                        value={pgn}
-                        onChange={(e) => setPgn(e.target.value)}
-                        placeholder="Paste PGN here to load a game..."
-                        className="w-full h-32 p-2 border rounded-md bg-white dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
-                    />
-                    {pgnError && <p className="text-red-500 text-sm mt-2">{pgnError}</p>}
-                    <button
-                        onClick={handleLoadPgn}
-                        disabled={engineStatus !== 'Ready'}
-                        className="mt-4 w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 transition disabled:bg-gray-400"
-                    >
-                        Load Game & Analyze
-                    </button>
-                    {isGameLoaded && (
-                        <div className="mt-6">
-                            <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300">Top Engine Moves:</h3>
-                            <ul className="list-decimal list-inside mt-2 text-gray-600 dark:text-gray-400">
-                                {topMoves.map((move, index) => <li key={index}>{move}</li>)}
-                            </ul>
+
+                {/* Right Column: Controls, Moves, and Analysis */}
+                <div className="w-full lg:flex-1 space-y-6">
+                    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
+                        <h2 className="text-2xl font-semibold mb-4 text-gray-700 dark:text-gray-300">PGN Loader</h2>
+                        <div className="flex items-center mb-2">
+                            <span className="font-semibold mr-2 text-gray-700 dark:text-gray-300">Engine Status:</span>
+                            <span className={`px-2 py-1 text-xs font-bold rounded-full ${engineStatus === 'Ready' ? 'bg-green-200 text-green-800' : 'bg-yellow-200 text-yellow-800'}`}>{engineStatus}</span>
                         </div>
+                        <textarea
+                            value={pgn}
+                            onChange={(e) => setPgn(e.target.value)}
+                            placeholder="Paste PGN here to load a game..."
+                            className="w-full h-32 p-2 border rounded-md bg-white dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
+                        />
+                        {pgnError && <p className="text-red-500 text-sm mt-2">{pgnError}</p>}
+                        <button
+                            onClick={handleLoadPgn}
+                            disabled={engineStatus !== 'Ready'}
+                            className="mt-4 w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 transition disabled:bg-gray-400"
+                        >
+                            Load Game & Analyze
+                        </button>
+                    </div>
+
+                    {isGameLoaded && (
+                        <>
+                            {/* NEW: MOVES AND NAVIGATION BLOCK */}
+                            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
+                                <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-3">Moves</h3>
+                                {/* Scrollable Move List */}
+                                <div className="h-48 overflow-y-auto bg-gray-50 dark:bg-gray-700 rounded-md p-2 mb-4">
+                                    <ol className="grid grid-cols-[auto_1fr_1fr] gap-x-4 gap-y-1 text-sm">
+                                        {history.reduce((acc, move, index) => {
+                                            if (index % 2 === 0) {
+                                                acc.push([move]);
+                                            } else {
+                                                acc[acc.length - 1].push(move);
+                                            }
+                                            return acc;
+                                        }, []).map((movePair, index) => (
+                                            <React.Fragment key={index}>
+                                                <div className="text-right text-gray-500 dark:text-gray-400">{index + 1}.</div>
+                                                {movePair.map((move, moveIndex) => (
+                                                    <div
+                                                        key={moveIndex}
+                                                        onClick={() => navigateToMove(index * 2 + moveIndex)}
+                                                        className={`p-1 rounded cursor-pointer hover:bg-indigo-100 dark:hover:bg-gray-600 ${currentMove === (index * 2 + moveIndex) ? 'bg-indigo-200 dark:bg-gray-900' : ''}`}
+                                                    >
+                                                        {move.san}
+                                                    </div>
+                                                ))}
+                                            </React.Fragment>
+                                        ))}
+                                    </ol>
+                                </div>
+                                {/* Navigation Buttons */}
+                                <div className="flex justify-center gap-4">
+                                    <button
+                                        onClick={goToPreviousMove}
+                                        disabled={currentMove <= -1}
+                                        className="p-3 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                        aria-label="Previous move"
+                                    >
+                                        <FaArrowLeft />
+                                    </button>
+                                    <button
+                                        onClick={goToNextMove}
+                                        disabled={currentMove >= history.length - 1}
+                                        className="p-3 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                        aria-label="Next move"
+                                    >
+                                        <FaArrowRight />
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            {/* Engine Top Moves */}
+                            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
+                                <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300">Top Engine Moves:</h3>
+                                <ul className="list-decimal list-inside mt-2 text-gray-600 dark:text-gray-400">
+                                    {topMoves.map((move, index) => <li key={index}>{move}</li>)}
+                                </ul>
+                            </div>
+                        </>
                     )}
                 </div>
             </div>
-
-            {isGameLoaded && (
-                <div className="mt-8 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
-                    <h2 className="text-2xl font-semibold mb-4 text-gray-700 dark:text-gray-300">Navigate Moves</h2>
-                    <div className="flex justify-center gap-4">
-                        <button
-                            onClick={goToPreviousMove}
-                            disabled={currentMove <= -1} // Disable if at start position or before
-                            className="p-3 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
-                            aria-label="Previous move"
-                        >
-                            <FaArrowLeft />
-                        </button>
-                        <button
-                            onClick={goToNextMove}
-                            disabled={currentMove >= history.length - 1} // Disable if at last move
-                            className="p-3 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
-                            aria-label="Next move"
-                        >
-                            <FaArrowRight />
-                        </button>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

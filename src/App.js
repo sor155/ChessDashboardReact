@@ -368,21 +368,21 @@ function GameAnalysis() {
     const [commentary, setCommentary] = useState('');
     const [isGeneratingCommentary, setIsGeneratingCommentary] = useState(false);
     const stockfish = useRef(null);
-    const messageHistory = useRef([]);
     const analysisCache = useRef({});
 
-    const generateTemplatedCommentary = useCallback((lastMoveSan, analysisAfter, analysisBefore) => {
+    const generateTemplatedCommentary = useCallback((lastMoveSan, analysisAfter, analysisBefore, moveColor) => {
         setIsGeneratingCommentary(true);
         let commentaryText = "";
 
         if (!lastMoveSan || !analysisAfter || !analysisBefore || analysisAfter.length === 0 || analysisBefore.length === 0) {
             commentaryText = "Analysis data incomplete. Cannot generate commentary.";
         } else {
-            const moveColor = history[currentMove]?.color === 'w' ? 1 : -1;
-            const currentScore = parseFloat(analysisAfter[0].score) * moveColor;
-            const prevScore = parseFloat(analysisBefore[0].score) * moveColor;
-
-            const evalChange = currentScore - prevScore;
+            const turn = moveColor === 'w' ? 1 : -1;
+            
+            const currentScore = isNaN(parseFloat(analysisAfter[0].score)) ? (analysisAfter[0].score.startsWith('M') ? (turn * 100) : 0) : parseFloat(analysisAfter[0].score);
+            const prevScore = isNaN(parseFloat(analysisBefore[0].score)) ? (analysisBefore[0].score.startsWith('M') ? (turn * 100) : 0) : parseFloat(analysisBefore[0].score);
+            
+            const evalChange = (currentScore * turn) - (prevScore * turn);
 
             let moveQuality = "";
             if (evalChange < -1.0) {
@@ -403,7 +403,7 @@ function GameAnalysis() {
 
         setCommentary(commentaryText);
         setIsGeneratingCommentary(false);
-    }, [history, currentMove]);
+    }, []);
     
     const getEvaluation = useCallback((fen) => {
         return new Promise((resolve) => {
@@ -417,14 +417,15 @@ function GameAnalysis() {
                 return;
             };
 
+            const messageHistory = [];
             const onMessage = (event) => {
                 const message = String(event.data);
-                messageHistory.current.push(message);
+                messageHistory.push(message);
 
                 if (message.startsWith('bestmove')) {
                     const finalTopMoves = [];
                     const tempGame = new Chess(fen);
-                     messageHistory.current.forEach(line => {
+                     messageHistory.forEach(line => {
                         if(line.startsWith('info depth') && line.includes('multipv')) {
                             const multipvMatch = line.match(/multipv (\d+)/);
                             const scoreMatch = line.match(/score (cp|mate) (-?\d+)/);
@@ -457,7 +458,6 @@ function GameAnalysis() {
                 }
             };
             stockfish.current.addEventListener('message', onMessage);
-            messageHistory.current = [];
             stockfish.current.postMessage(`position fen ${fen}`);
             stockfish.current.postMessage('go depth 15');
         });
@@ -516,6 +516,7 @@ function GameAnalysis() {
 
             if (newGame.history().length === 0) throw new Error("PGN loaded, but no moves found.");
             
+            analysisCache.current = {}; // Clear cache for new game
             const startingFen = new Chess().fen();
             setGame(new Chess(startingFen));
             setHistory(newGame.history({ verbose: true }));
@@ -542,24 +543,26 @@ function GameAnalysis() {
     const navigateToMove = useCallback(async (index) => {
         if (index < 0 || index >= history.length) return;
         
-        setIsGeneratingCommentary(true); // Set loading state for commentary
+        setIsGeneratingCommentary(true);
 
         const tempGame = new Chess();
         const fullHistory = history.map(h => h.san);
         
         let fenBefore = new Chess().fen();
         for (let i = 0; i < index; i++) {
-             tempGame.move(fullHistory[i]);
+             tempGame.move(fullHistory[i], { sloppy: true });
         }
         fenBefore = tempGame.fen();
         
-        const moveResult = tempGame.move(fullHistory[index]);
-        if(!moveResult) return;
+        const moveResult = tempGame.move(fullHistory[index], { sloppy: true });
+        if(!moveResult) {
+            setIsGeneratingCommentary(false);
+            return;
+        };
 
         setGame(tempGame);
         setCurrentMove(index);
         
-        // Await both analyses to complete
         const [analysisBefore, analysisAfter] = await Promise.all([
             getEvaluation(fenBefore),
             getEvaluation(tempGame.fen())

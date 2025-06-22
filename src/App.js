@@ -195,8 +195,6 @@ function Dashboard({ currentRatings, ratingHistory, theme }) {
 function PlayerStats({ theme, openingStats: allOpeningStats }) {
     const [selectedPlayer, setSelectedPlayer] = useState(FRIENDS[0].username);
     const [playerData, setPlayerData] = useState(null);
-    // Remove the `openings` state if you're directly filtering
-    // const [openings, setOpenings] = useState({ white: [], black: [] });
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -206,16 +204,12 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
                 const stats = await fetch(`https://api.chess.com/pub/player/${selectedPlayer}/stats`).then(res => res.json());
 
                 const friendName = FRIENDS.find(f => f.username === selectedPlayer)?.name;
-                const playerOpeningStats = allOpeningStats.filter(s => s.player === friendName);
-
-                // Filter for white and black openings
-                const whiteOpenings = playerOpeningStats.filter(s => s.color === 'white');
-                const blackOpenings = playerOpeningStats.filter(s => s.color === 'black');
+                // These lines are no longer needed as filtering is done directly in JSX:
+                // const playerOpeningStats = allOpeningStats.filter(s => s.player === friendName);
+                // const whiteOpenings = playerOpeningStats.filter(s => s.color === 'white'); // REMOVE THIS LINE
+                // const blackOpenings = playerOpeningStats.filter(s => s.color === 'black'); // REMOVE THIS LINE
 
                 setPlayerData({ stats });
-                // Pass filtered data directly to the OpeningChart
-                // setOpenings({ white: whiteOpenings, black: blackOpenings }); // This line is no longer needed
-
             } catch (error) {
                 console.error("Failed to fetch player data:", error);
             } finally {
@@ -229,7 +223,6 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
     const chartColor = theme === 'dark' ? '#9ca3af' : '#9e9e9e';
 
     const OpeningChart = ({ data, color, title }) => {
-        // ... (rest of OpeningChart component - no changes needed here)
         if (!data || data.length === 0) {
             return (
                 <div>
@@ -249,7 +242,7 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
                             <YAxis type="category" dataKey="opening_name" width={120} stroke={chartColor} tick={{ fontSize: 12 }} />
                           <Tooltip contentStyle={{ backgroundColor: theme === 'dark' ? '#1f2937' : '#ffffff' }} formatter={(value, name, props) => {
     if (name === "games_played") {
-        const { white_wins, draws } = props.payload; // "black_wins" has been removed
+        const { white_wins, draws } = props.payload;
         return `${value} (W: ${white_wins}, L: ${props.payload.losses}, D: ${draws})`;
     }
     return value;
@@ -263,7 +256,6 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
     }
 
     const StatCard = ({ title, rating, record }) => (
-        // ... (rest of StatCard component - no changes needed here)
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 text-center">
             <h3 className="text-xl font-semibold text-gray-600 dark:text-gray-400">{title}</h3>
             <p className="text-4xl font-bold text-gray-800 dark:text-gray-100 my-2">{rating || 'N/A'}</p>
@@ -290,7 +282,6 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
                     <div className="mt-10 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
                         <h2 className="text-2xl font-semibold mb-4 text-gray-700 dark:text-gray-300">Favorite Openings</h2>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                            {/* Use the directly filtered data here */}
                             <OpeningChart title="As White" data={allOpeningStats.filter(s => s.player === FRIENDS.find(f => f.username === selectedPlayer)?.name && s.color === 'white')} color="#8884d8" />
                             <OpeningChart title="As Black" data={allOpeningStats.filter(s => s.player === FRIENDS.find(f => f.username === selectedPlayer)?.name && s.color === 'black')} color="#82ca9d" />
                         </div>

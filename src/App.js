@@ -52,6 +52,20 @@ const MoonIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height
 const FaArrowLeft = () => <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 256 512" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M192 448c-8.188 0-16.38-3.125-22.62-9.375l-160-160c-12.5-12.5-12.5-32.75 0-45.25l160-160c12.5-12.5 32.75-12.5 45.25 0s12.5 32.75 0 45.25L77.25 256l137.4 137.4c12.5 12.5 12.5 32.75 0 45.25C208.4 444.9 200.2 448 192 448z"></path></svg>;
 const FaArrowRight = () => <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 256 512" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M64 448c-8.188 0-16.38-3.125-22.62-9.375c-12.5-12.5-12.5-32.75 0-45.25L178.8 256L41.38 118.6c-12.5-12.5-12.5-32.75 0-45.25s32.75-12.5 45.25 0l160 160c12.5 12.5 12.5 32.75 0 45.25l-160 160C80.38 444.9 72.19 448 64 448z"></path></svg>;
 
+// Hamburger Menu Icon
+const MenuIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+);
+
+// Close Icon for Menu
+const CloseIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+    </svg>
+);
+
 
 function Dashboard({ currentRatings, ratingHistory, theme }) {
     const [chartData, setChartData] = useState([]);
@@ -564,6 +578,7 @@ export default function App() {
     const [openingStats, setOpeningStats] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // New state for mobile menu
 
     const loadAllData = useCallback(async () => {
         setLoading(true);
@@ -630,8 +645,9 @@ export default function App() {
         }
     };
 
+    // Updated NavItem to close menu on click
     const NavItem = ({ name }) => (
-        <button onClick={() => setActiveTab(name)} className={`w-full text-left px-4 py-2.5 rounded-lg text-md transition-colors ${activeTab === name ? 'bg-indigo-100 dark:bg-gray-700 text-indigo-700 dark:text-gray-100 font-semibold' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 hover:text-gray-100'}`}>
+        <button onClick={() => { setActiveTab(name); setIsMobileMenuOpen(false); }} className={`w-full text-left px-4 py-2.5 rounded-lg text-md transition-colors ${activeTab === name ? 'bg-indigo-100 dark:bg-gray-700 text-indigo-700 dark:text-gray-100 font-semibold' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 hover:text-gray-100'}`}>
             {name}
         </button>
     );
@@ -640,7 +656,41 @@ export default function App() {
 
     return (
         <div className="flex h-screen bg-gray-100 dark:bg-gray-900 font-sans">
-            <aside className="w-64 bg-white dark:bg-gray-800 flex-shrink-0 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+            {/* Mobile Header with Hamburger Menu */}
+            <header className="lg:hidden w-full bg-white dark:bg-gray-800 p-4 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
+                <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">♟️ Chess App</h1>
+                <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                    <MenuIcon />
+                </button>
+            </header>
+
+            {/* Mobile Menu Overlay */}
+            {isMobileMenuOpen && (
+                <div className="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 lg:hidden" onClick={() => setIsMobileMenuOpen(false)}>
+                    <div className="absolute left-0 top-0 h-full w-64 bg-white dark:bg-gray-800 flex flex-col shadow-lg" onClick={(e) => e.stopPropagation()}>
+                        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                            <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">Menu</h1>
+                            <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                                <CloseIcon />
+                            </button>
+                        </div>
+                        <nav className="p-4 space-y-2 flex-grow">
+                            <NavItem name="Dashboard" />
+                            <NavItem name="Player Stats" />
+                            <NavItem name="Game Analysis" />
+                        </nav>
+                        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+                            <button onClick={toggleTheme} className="w-full flex items-center justify-center p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                                {theme === 'light' ? <MoonIcon /> : <SunIcon />}
+                                <span className="ml-2">Switch Theme</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Desktop Sidebar Navigation */}
+            <aside className="hidden lg:flex w-64 bg-white dark:bg-gray-800 flex-shrink-0 border-r border-gray-200 dark:border-gray-700 flex-col">
                 <div className="p-4 border-b border-gray-200 dark:border-gray-700">
                     <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">♟️ Chess App</h1>
                 </div>
@@ -656,7 +706,9 @@ export default function App() {
                     </button>
                 </div>
             </aside>
-            <main className="flex-1 overflow-y-auto p-8">
+
+            {/* Main Content */}
+            <main className="flex-1 overflow-y-auto p-8 pt-24 lg:pt-8"> {/* Added pt-24 for mobile header clearance */}
                 {renderTab()}
             </main>
         </div>

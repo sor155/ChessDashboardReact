@@ -227,9 +227,12 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
         const fetchAllPlayerData = async () => {
             setLoading(true);
             try {
-                const stats = await fetch(`https://api.chess.com/pub/player/${selectedPlayer}/stats`).then(res => res.json());
+                const [stats, profile] = await Promise.all([
+                    fetch(`https://api.chess.com/pub/player/${selectedPlayer}/stats`).then(res => res.json()),
+                    fetch(`https://api.chess.com/pub/player/${selectedPlayer}`).then(res => res.json())
+                ]);
 
-                setPlayerData({ stats });
+                setPlayerData({ stats, profile });
             } catch (error) {
                 console.error("Failed to fetch player data:", error);
             } finally {
@@ -254,7 +257,6 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
         return (
             <div>
                 <h3 className="text-lg font-semibold text-center mb-2 text-gray-800 dark:text-gray-200">{title}</h3>
-                {/* Added explicit height to the parent div for ResponsiveContainer */}
                 <div style={{ height: '250px' }}>
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart
@@ -263,7 +265,7 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
                             margin={{
                                 top: 5,
                                 right: 20,
-                                left: window.innerWidth < 768 ? 60 : 120, // Responsive left margin
+                                left: window.innerWidth < 768 ? 60 : 120,
                                 bottom: 5
                             }}
                         >
@@ -296,28 +298,64 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
     return (
         <div>
             <h1 className="text-4xl font-bold mb-8 text-gray-800 dark:text-gray-200">Player Stats</h1>
+
             <div className="mb-8">
                 <label htmlFor="player-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Select a Player</label>
-                <select id="player-select" value={selectedPlayer} onChange={e => setSelectedPlayer(e.target.value)} className="block w-full md:w-1/2 p-3 border border-gray-300 bg-white dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                <select
+                    id="player-select"
+                    value={selectedPlayer}
+                    onChange={e => setSelectedPlayer(e.target.value)}
+                    className="block w-full md:w-1/2 p-3 border border-gray-300 bg-white dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                >
                     {FRIENDS.map(friend => <option key={friend.username} value={friend.username}>{friend.name}</option>)}
                 </select>
             </div>
-            {loading ? <p className="text-center text-gray-600 dark:text-gray-400">Loading player data...</p> : playerData ? (
+
+            {loading ? (
+                <p className="text-center text-gray-600 dark:text-gray-400">Loading player data...</p>
+            ) : playerData ? (
                 <>
+                    <div className="flex items-center mb-6 gap-4">
+                        {playerData.profile?.avatar && (
+                            <img
+                                src={playerData.profile.avatar}
+                                alt={`${selectedPlayer}'s avatar`}
+                                className="w-20 h-20 rounded-full border-4 border-indigo-500"
+                            />
+                        )}
+                        <div>
+                            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">{playerData.profile?.name || selectedPlayer}</h2>
+                            {playerData.profile?.title && (
+                                <p className="text-sm text-indigo-400 font-semibold uppercase">{playerData.profile.title}</p>
+                            )}
+                        </div>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <StatCard title="Rapid" rating={playerData.stats?.chess_rapid?.last.rating} record={playerData.stats?.chess_rapid?.record} />
                         <StatCard title="Blitz" rating={playerData.stats?.chess_blitz?.last.rating} record={playerData.stats?.chess_blitz?.record} />
                         <StatCard title="Bullet" rating={playerData.stats?.chess_bullet?.last.rating} record={playerData.stats?.chess_bullet?.record} />
                     </div>
+
                     <div className="mt-10 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
                         <h2 className="text-2xl font-semibold mb-4 text-gray-700 dark:text-gray-300">Favorite Openings</h2>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                            <OpeningChart title="As White" data={allOpeningStats.filter(s => s.player === FRIENDS.find(f => f.username === selectedPlayer)?.name && s.color === 'white')} color="#8884d8" />
-                            <OpeningChart title="As Black" data={allOpeningStats.filter(s => s.player === FRIENDS.find(f => f.username === selectedPlayer)?.name && s.color === 'black')} color="#82ca9d" />
+                            <OpeningChart
+                                title="As White"
+                                data={allOpeningStats.filter(s => s.player === FRIENDS.find(f => f.username === selectedPlayer)?.name && s.color === 'white')}
+                                color="#8884d8"
+                            />
+                            <OpeningChart
+                                title="As Black"
+                                data={allOpeningStats.filter(s => s.player === FRIENDS.find(f => f.username === selectedPlayer)?.name && s.color === 'black')}
+                                color="#82ca9d"
+                            />
                         </div>
                     </div>
                 </>
-            ) : <p>Could not load player data.</p>}
+            ) : (
+                <p>Could not load player data.</p>
+            )}
         </div>
     );
 }

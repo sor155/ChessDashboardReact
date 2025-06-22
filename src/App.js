@@ -203,11 +203,8 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
             try {
                 const stats = await fetch(`https://api.chess.com/pub/player/${selectedPlayer}/stats`).then(res => res.json());
 
-                const friendName = FRIENDS.find(f => f.username === selectedPlayer)?.name;
-                // These lines are no longer needed as filtering is done directly in JSX:
-                // const playerOpeningStats = allOpeningStats.filter(s => s.player === friendName);
-                // const whiteOpenings = playerOpeningStats.filter(s => s.color === 'white'); // REMOVE THIS LINE
-                // const blackOpenings = playerOpeningStats.filter(s => s.color === 'black'); // REMOVE THIS LINE
+                // REMOVE THIS LINE:
+                // const friendName = FRIENDS.find(f => f.username === selectedPlayer)?.name;
 
                 setPlayerData({ stats });
             } catch (error) {

@@ -380,18 +380,23 @@ function GameAnalysis() {
         loadEcoData();
     }, []);
 
-    const getEvaluation = useCallback((fen) => {
+    const getEvaluation = useCallback(async (fen) => {
+        if (analysisCache.current[fen]) {
+            const cachedAnalysis = analysisCache.current[fen];
+            setEvaluation(cachedAnalysis[0]?.score || '');
+            setTopMoves(cachedAnalysis);
+            return;
+        }
+
+        if (engineStatus !== 'Ready' || !stockfish.current) {
+            return;
+        }
+
+        // Set the evaluation to a loading state immediately
+        setEvaluation('...');
+        setTopMoves([]);
+
         return new Promise((resolve) => {
-            if (analysisCache.current[fen]) {
-                resolve(analysisCache.current[fen]);
-                return;
-            }
-
-            if (engineStatus !== 'Ready' || !stockfish.current) {
-                resolve(null);
-                return;
-            };
-
             const messageHistory = [];
             const onMessage = (event) => {
                 const message = String(event.data);
@@ -429,12 +434,14 @@ function GameAnalysis() {
                     
                     stockfish.current.removeEventListener('message', onMessage);
                     analysisCache.current[fen] = finalTopMoves;
+                    setEvaluation(finalTopMoves[0]?.score || '');
+                    setTopMoves(finalTopMoves);
                     resolve(finalTopMoves);
                 }
             };
             stockfish.current.addEventListener('message', onMessage);
             stockfish.current.postMessage(`position fen ${fen}`);
-            stockfish.current.postMessage('go depth 35');
+            stockfish.current.postMessage('go depth 18'); // Using a slightly lower depth for faster interaction
         });
     }, [engineStatus]);
     
@@ -471,6 +478,36 @@ function GameAnalysis() {
             console.error("Failed to initialize Stockfish worker:", error);
         }
     }, []);
+    
+    // *** NEW FUNCTION TO HANDLE MOVES ON THE BOARD ***
+    const onPieceDrop = (sourceSquare, targetSquare) => {
+        const gameCopy = new Chess(game.fen());
+        const move = gameCopy.move({
+            from: sourceSquare,
+            to: targetSquare,
+            promotion: 'q' // NOTE: always promote to a queen for simplicity
+        });
+
+        // If the move is illegal, do nothing
+        if (move === null) {
+            return false;
+        }
+
+        // Update the game state
+        setGame(gameCopy);
+        
+        // Update history and current move index
+        const newHistory = history.slice(0, currentMove + 1);
+        newHistory.push(move);
+        setHistory(newHistory);
+        setCurrentMove(newHistory.length - 1);
+
+        // Get the new evaluation
+        getEvaluation(gameCopy.fen());
+
+        return true;
+    };
+
 
     const handleLoadPgn = () => {
         setPgnError('');
@@ -497,12 +534,7 @@ function GameAnalysis() {
             setHistory(newGame.history({ verbose: true }));
             setCurrentMove(-1);
             setOpening('');
-            getEvaluation(startingFen).then(analysis => {
-                if (analysis && analysis.length > 0) {
-                    setEvaluation(analysis[0].score);
-                    setTopMoves(analysis);
-                }
-            });
+            getEvaluation(startingFen);
 
         } catch (e) {
             setPgnError(e.message || "Error loading PGN.");
@@ -532,7 +564,7 @@ function GameAnalysis() {
         setGame(new Chess(tempGameForFen.fen()));
         setCurrentMove(index);
         
-        const analysisAfter = await getEvaluation(tempGameForFen.fen());
+        await getEvaluation(tempGameForFen.fen());
         
         const gameForPgn = new Chess();
         for(let i=0; i<=index; i++){
@@ -542,23 +574,14 @@ function GameAnalysis() {
         const openingName = ecoData.current[currentPgn];
         setOpening(openingName || '');
 
-        if (analysisAfter && analysisAfter.length > 0) {
-             setEvaluation(analysisAfter[0].score);
-             setTopMoves(analysisAfter.slice(0,3));
-        }
     }, [history, getEvaluation]);
 
     const goToPreviousMove = useCallback(() => {
         if (currentMove === 0) { 
             setGame(new Chess());
             setCurrentMove(-1);
-            getEvaluation(new Chess().fen()).then(analysis => {
-                if (analysis && analysis.length > 0) {
-                    setEvaluation(analysis[0].score);
-                    setTopMoves(analysis);
-                    setOpening('');
-                }
-            });
+            getEvaluation(new Chess().fen());
+            setOpening('');
         } else if (currentMove > 0) {
             navigateToMove(currentMove - 1);
         }
@@ -599,7 +622,12 @@ function GameAnalysis() {
             <h1 className="text-4xl font-bold mb-8 text-gray-800 dark:text-gray-200">Chess Analysis</h1>
             <div className="flex flex-col lg:flex-row gap-8 items-start">
                 <div className="w-full lg:w-auto lg:max-w-md">
-                    <Chessboard position={game.fen()} boardWidth={Math.min(400, window.innerWidth - 60)} />
+                    {/* *** ADD onPieceDrop TO THE CHESSBOARD *** */}
+                    <Chessboard
+                        position={game.fen()}
+                        onPieceDrop={onPieceDrop}
+                        boardWidth={Math.min(400, window.innerWidth - 60)}
+                    />
                     {isGameLoaded && <EvaluationBar score={evaluation} />}
                     {opening && <div className="text-center mt-2 text-indigo-400 font-semibold">{opening}</div>}
                 </div>

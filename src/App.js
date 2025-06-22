@@ -368,9 +368,13 @@ function GameAnalysis() {
     const [commentary, setCommentary] = useState('');
     const [isGeneratingCommentary, setIsGeneratingCommentary] = useState(false);
     const stockfish = useRef(null);
-    const currentGameForEngine = useRef(new Chess());
+    const messageHistory = useRef([]); // Use ref to store messages without causing re-renders
 
     const getAiCommentary = useCallback(async (fen, lastMoveSan, stockfishEval, stockfishTopMoves) => {
+        if (!lastMoveSan) {
+            setCommentary('This is the starting position. Load a PGN and make a move to begin analysis.');
+            return;
+        }
         setIsGeneratingCommentary(true);
         setCommentary('');
         let chatHistory = [];
@@ -422,50 +426,60 @@ function GameAnalysis() {
         setEvaluation('...');
         setTopMoves([]);
         setCommentary('');
-        stockfish.current.onmessage = (event) => {
+        
+        // This is a new handler specifically for this analysis request
+        const onMessage = (event) => {
             const message = String(event.data);
-            if (message.startsWith('info depth') && message.includes('multipv')) {
-                 // The logic to parse multipv will be handled when bestmove is received.
-            } else if (message.startsWith('bestmove')) {
-                // Now parse all the info lines we got before this
+            if (message.startsWith('bestmove')) {
+                // Analysis is complete, now parse the history
                 const finalTopMoves = [];
-                const infoLines = stockfish.current.history || []; // Assuming worker stores history of messages
-                 infoLines.forEach(line => {
-                    const multipvMatch = line.match(/multipv (\d+)/);
-                    const scoreMatch = line.match(/score (cp|mate) (-?\d+)/);
-                    const pvMatch = line.match(/ pv (.+)/);
+                const tempGame = new Chess(fen);
+                 messageHistory.current.forEach(line => {
+                    if(line.startsWith('info depth') && line.includes('multipv')) {
+                        const multipvMatch = line.match(/multipv (\d+)/);
+                        const scoreMatch = line.match(/score (cp|mate) (-?\d+)/);
+                        const pvMatch = line.match(/ pv (.+)/);
 
-                    if (multipvMatch && scoreMatch && pvMatch) {
-                        const pvIndex = parseInt(multipvMatch[1], 10) - 1;
-                        const scoreType = scoreMatch[1];
-                        let scoreValue = parseInt(scoreMatch[2], 10);
-                        const firstMove = pvMatch[1].split(' ')[0];
+                        if (multipvMatch && scoreMatch && pvMatch) {
+                            const pvIndex = parseInt(multipvMatch[1], 10) - 1;
+                            const scoreType = scoreMatch[1];
+                            let scoreValue = parseInt(scoreMatch[2], 10);
+                            const firstMove = pvMatch[1].split(' ')[0];
 
-                        if(scoreType === 'cp'){
-                            scoreValue = (scoreValue / 100.0).toFixed(2);
-                        } else {
-                            scoreValue = `M${scoreValue}`;
-                        }
-                        
-                        const tempGame = new Chess(fen);
-                        const moveResult = tempGame.move(firstMove);
-                        if (moveResult) {
-                            finalTopMoves[pvIndex] = {san: moveResult.san, score: scoreValue};
+                            if(scoreType === 'cp'){
+                                scoreValue = (scoreValue / 100.0).toFixed(2);
+                            } else {
+                                scoreValue = `M${scoreValue}`;
+                            }
+                            
+                            const moveResult = tempGame.move(firstMove, { sloppy: true });
+                            if (moveResult) {
+                                finalTopMoves[pvIndex] = {san: moveResult.san, score: scoreValue};
+                                tempGame.undo(); // Undo to keep the FEN consistent
+                            }
                         }
                     }
                 });
                 
                 if(finalTopMoves.length > 0) {
                     setEvaluation(finalTopMoves[0].score);
-                    setTopMoves(finalTopMoves);
+                    setTopMoves(finalTopMoves.slice(0,3));
                     if(lastMoveSan) {
                         getAiCommentary(fen, lastMoveSan, finalTopMoves[0].score, finalTopMoves);
+                    } else {
+                        setCommentary('This is the starting position. Make a move or navigate to see commentary.');
                     }
                 }
-                stockfish.current.history = []; // Clear history for next command
+                
+                // Cleanup: remove this specific listener
+                stockfish.current.removeEventListener('message', onMessage);
+            } else {
+                 messageHistory.current.push(message);
             }
         };
-        stockfish.current.history = []; // Ensure history is clear before sending command
+
+        stockfish.current.addEventListener('message', onMessage);
+        messageHistory.current = []; // Clear history for the new request
         stockfish.current.postMessage(`position fen ${fen}`);
         stockfish.current.postMessage('go depth 15');
     }, [engineStatus, getAiCommentary]);
@@ -476,20 +490,19 @@ function GameAnalysis() {
         try {
             worker = new Worker(STOCKFISH_URL);
             stockfish.current = worker;
-            stockfish.current.history = [];
 
-            const onMessage = (event) => {
-                const message = String(event.data);
-                stockfish.current.history.push(message); // Store all messages
-                
-                if (message === 'readyok') {
-                    setEngineStatus('Ready');
+            const onUciOk = (event) => {
+                 if (String(event.data) === 'uciok') {
                     worker.postMessage('setoption name MultiPV value 3');
-                } else if (message.startsWith('uciok')) {
                     worker.postMessage('isready');
-                }
+                 }
+                 if(String(event.data) === 'readyok'){
+                    setEngineStatus('Ready');
+                    worker.removeEventListener('message', onUciOk);
+                 }
             };
-            worker.addEventListener('message', onMessage);
+            worker.addEventListener('message', onUciOk);
+
             worker.onerror = (e) => {
                  setEngineStatus(`Error: Stockfish failed.`);
                  console.error("Stockfish worker error:", e);
@@ -497,7 +510,6 @@ function GameAnalysis() {
             worker.postMessage('uci');
 
             return () => {
-                worker.removeEventListener('message', onMessage);
                 worker.terminate();
             };
         } catch (error) {

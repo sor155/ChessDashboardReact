@@ -673,7 +673,7 @@ export default function App() {
             {isMobileMenuOpen && (
                 <div className="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 lg:hidden" onClick={() => setIsMobileMenuOpen(false)}>
                     {/* The actual sliding menu panel */}
-                    <div className={`absolute left-0 top-0 h-full w-3/4 max-w-xs bg-white dark:bg-gray-800 flex flex-col shadow-lg transform transition-transform duration-300 ease-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`} onClick={(e) => e.stopPropagation()}>
+                    <div className={`absolute left-0 top-0 h-full w-64 bg-white dark:bg-gray-800 flex flex-col shadow-lg transform transition-transform duration-300 ease-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`} onClick={(e) => e.stopPropagation()}>
                         <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
                             <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">Menu</h1>
                             <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
@@ -705,7 +705,12 @@ export default function App() {
                     <NavItem name="Player Stats" />
                     <NavItem name="Game Analysis" />
                 </nav>
-                {/* Theme switch button removed from desktop sidebar, now only in mobile menu */}
+                <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+                    <button onClick={toggleTheme} className="w-full flex items-center justify-center p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                        {theme === 'light' ? <MoonIcon /> : <SunIcon />}
+                        <span className="ml-2">Switch Theme</span>
+                    </button>
+                </div>
             </aside>
 
             {/* Main Content */}

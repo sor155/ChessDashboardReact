@@ -661,7 +661,7 @@ export default function App() {
 
     return (
         <div className="flex h-screen bg-gray-100 dark:bg-gray-900 font-sans">
-            {/* Mobile Header with Hamburger Menu */}
+            {/* Mobile Header with Hamburger Menu (visible on small screens only) */}
             <header className="lg:hidden w-full bg-white dark:bg-gray-800 p-4 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
                 <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">♟️ Chess App</h1>
                 <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
@@ -672,7 +672,7 @@ export default function App() {
             {/* Mobile Menu Overlay */}
             {isMobileMenuOpen && (
                 <div className="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 lg:hidden" onClick={() => setIsMobileMenuOpen(false)}>
-                    {/* The actual sliding menu panel, now smaller on mobile */}
+                    {/* The actual sliding menu panel, now smaller on mobile (w-48) */}
                     <div className={`absolute left-0 top-0 h-full w-48 bg-white dark:bg-gray-800 flex flex-col shadow-lg transform transition-transform duration-300 ease-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`} onClick={(e) => e.stopPropagation()}>
                         <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
                             <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">Menu</h1>
@@ -695,7 +695,7 @@ export default function App() {
                 </div>
             )}
 
-            {/* Desktop Sidebar Navigation */}
+            {/* Desktop Sidebar Navigation (hidden on small screens, shown on large) */}
             <aside className="hidden lg:flex w-48 bg-white dark:bg-gray-800 flex-shrink-0 border-r border-gray-200 dark:border-gray-700 flex-col">
                 <div className="p-4 border-b border-gray-200 dark:border-gray-700">
                     <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">♟️ Chess App</h1>

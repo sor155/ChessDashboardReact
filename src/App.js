@@ -371,7 +371,7 @@ function GameAnalysis() {
     const messageHistory = useRef([]);
     const analysisCache = useRef({});
 
-    const generateTemplatedCommentary = useCallback((lastMoveSan, analysisAfter, analysisBefore) => {
+    const generateTemplatedCommentary = useCallback((lastMoveSan, analysisAfter, analysisBefore, moveColor) => {
         setIsGeneratingCommentary(true);
         let commentaryText = "";
 
@@ -382,7 +382,7 @@ function GameAnalysis() {
             return;
         }
 
-        const turn = history[currentMove].color === 'w' ? 1 : -1;
+        const turn = moveColor === 'w' ? 1 : -1;
         
         const currentScore = parseFloat(analysisAfter[0].score) * turn;
         const prevScore = parseFloat(analysisBefore[0].score) * turn;
@@ -402,12 +402,12 @@ function GameAnalysis() {
         
         commentaryText = `The move ${lastMoveSan} is ${moveQuality}. `;
         if (lastMoveSan !== analysisBefore[0].san) {
-            commentaryText += `The engine suggests ${analysisBefore[0].san} with an evaluation of ${analysisBefore[0].score}.`;
+            commentaryText += `The engine suggests ${analysisBefore[0].san} as the best move.`;
         }
 
         setCommentary(commentaryText);
         setIsGeneratingCommentary(false);
-    }, [history, currentMove]);
+    }, []);
 
     const getEvaluation = useCallback((fen) => {
         return new Promise((resolve) => {
@@ -544,18 +544,19 @@ function GameAnalysis() {
     };
 
     const navigateToMove = useCallback(async (index) => {
+        if (index < 0 || index >= history.length) return;
+
         const tempGame = new Chess();
         const fullHistory = history.map(h => h.san);
-        let lastMoveSan = null;
+        
         let fenBefore = new Chess().fen();
-
         for (let i = 0; i < index; i++) {
              tempGame.move(fullHistory[i]);
         }
         fenBefore = tempGame.fen();
         
         const moveResult = tempGame.move(fullHistory[index]);
-        if(moveResult) lastMoveSan = moveResult.san;
+        if(!moveResult) return; // Should not happen with valid PGN
 
         setGame(tempGame);
         setCurrentMove(index);
@@ -566,7 +567,7 @@ function GameAnalysis() {
         if (analysisAfter && analysisAfter.length > 0 && analysisBefore && analysisBefore.length > 0) {
              setEvaluation(analysisAfter[0].score);
              setTopMoves(analysisAfter.slice(0,3));
-             generateTemplatedCommentary(lastMoveSan, analysisAfter[0].score, analysisBefore[0]);
+             generateTemplatedCommentary(moveResult.san, analysisAfter, analysisBefore, moveResult.color);
         }
     }, [history, getEvaluation, generateTemplatedCommentary]);
 

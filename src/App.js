@@ -3,16 +3,6 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { Chessboard } from 'react-chessboard';
 import { Chess } from 'chess.js';
 
-// Vercel Speed Insights and Analytics require installation via npm/yarn.
-// They are commented out in this environment to allow the application to compile.
-// In a real project/deployment, you would first install them using:
-// `npm install @vercel/speed-insights @vercel/analytics`
-// or `yarn add @vercel/speed-insights @vercel/analytics`
-// After successful installation, uncomment the lines below and in the App component.
-// import { SpeedInsights } from '@vercel/speed-insights/react';
-// import { Analytics } from '@vercel/analytics/react';
-
-
 // --- Constants ---
 const FRIENDS = [
     { name: "Ulysse", username: "realulysse" },
@@ -747,8 +737,7 @@ function GameAnalysis() {
     );
 }
 
-// Renamed the main App component to InternalApp
-function InternalApp() {
+export default function App() {
     const [theme, setTheme] = useTheme();
     const [activeTab, setActiveTab] = useState('Dashboard');
     const [currentRatings, setCurrentRatings] = useState([]);
@@ -756,7 +745,7 @@ function InternalApp() {
     const [openingStats, setOpeningStats] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // State for mobile menu visibility
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     const loadAllData = useCallback(async () => {
         setLoading(true);
@@ -822,8 +811,7 @@ function InternalApp() {
             default: return <Dashboard currentRatings={currentRatings} ratingHistory={ratingHistory} theme={theme} />;
         }
     };
-
-    // NavItem now also closes the mobile menu
+    
     const NavItem = ({ name }) => (
         <button onClick={() => { setActiveTab(name); setIsMobileMenuOpen(false); }} className={`w-full text-left px-4 py-2.5 rounded-lg text-md transition-colors ${activeTab === name ? 'bg-indigo-100 dark:bg-gray-700 text-indigo-700 dark:text-gray-100 font-semibold' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 hover:text-gray-100'}`}>
             {name}
@@ -831,7 +819,6 @@ function InternalApp() {
     );
 
     const toggleMobileMenu = () => setIsMobileMenuOpen(prev => !prev);
-    // Wrapped toggleTheme in useCallback
     const toggleTheme = useCallback(() => {
         setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
     }, [setTheme]);
@@ -839,19 +826,16 @@ function InternalApp() {
 
     return (
         <div className="relative min-h-screen bg-gray-100 dark:bg-gray-900 font-sans">
-            {/* Universal Header - fixed to top-left corner */}
-            <header className="fixed top-0 left-0 z-50 bg-white dark:bg-gray-800 p-3 shadow-md flex items-center justify-between w-40"> {/* Smaller fixed width */}
-                <h1 className="text-xl font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap overflow-hidden text-ellipsis">♟️</h1> {/* Keep title visible, maybe truncate */}
-                <button onClick={toggleMobileMenu} className="p-1 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+            <header className="fixed top-0 left-0 z-50 bg-white dark:bg-gray-800 p-2 shadow-md flex items-center justify-between w-auto">
+                <div className="text-2xl text-gray-800 dark:text-gray-200">♟️</div>
+                <button onClick={toggleMobileMenu} className="p-1 ml-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                     <MenuIcon />
                 </button>
             </header>
 
-            {/* Universal Menu Overlay */}
             {isMobileMenuOpen && (
-                <div className="fixed inset-0 bg-gray-900 bg-opacity-75 z-40" onClick={() => setIsMobileMenuOpen(false)}> {/* Z-index lower than header */}
-                    {/* The actual sliding menu panel */}
-                    <div className={`absolute left-0 top-0 h-full w-32 bg-white dark:bg-gray-800 flex flex-col shadow-lg transform transition-transform duration-300 ease-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`} onClick={(e) => e.stopPropagation()}>
+                <div className="fixed inset-0 bg-gray-900 bg-opacity-75 z-40" onClick={() => setIsMobileMenuOpen(false)}>
+                    <div className={`absolute left-0 top-0 h-full w-64 bg-white dark:bg-gray-800 flex flex-col shadow-lg transform transition-transform duration-300 ease-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`} onClick={(e) => e.stopPropagation()}>
                         <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
                             <h1 className="text-xl font-bold text-gray-800 dark:text-gray-200">Menu</h1>
                             <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
@@ -873,26 +857,9 @@ function InternalApp() {
                 </div>
             )}
 
-     {/* Main Content */}
-            {/* Adjusted padding for main content based on header size and screen size */}
-            <main className="flex-1 overflow-y-auto p-8 pt-16 pl-8 lg:pl-48"> {/* Default pl-8 for mobile, pl-48 for larger screens */}
+            <main className="flex-1 overflow-y-auto p-8 pt-20">
                 {renderTab()}
             </main>
         </div>
-    );
-}
-
-// New default export App component that includes SpeedInsights
-export default function App() {
-    return (
-        <>
-            <InternalApp />
-            {/* SpeedInsights component is commented out as it caused compilation issues in this environment.
-                For local development/deployment, you would uncomment it and ensure the package is installed. */}
-            {/* <SpeedInsights /> */}
-            {/* Analytics component is commented out as it requires installation.
-                For local development/deployment, uncomment it and ensure the package is installed. */}
-            {/* <Analytics /> */}
-        </>
     );
 }

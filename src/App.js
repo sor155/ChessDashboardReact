@@ -301,9 +301,13 @@ function GameAnalysis() {
 
     // Memoize getEvaluation to prevent it from changing on every render
     const getEvaluation = useCallback((fen) => {
-        if (engineStatus !== 'Ready' || !stockfish.current) return;
+        if (engineStatus !== 'Ready' || !stockfish.current) {
+            console.log("getEvaluation: Engine not ready or worker not available.");
+            return;
+        }
         setEvaluation('...'); // Show loading state for evaluation
         setTopMoves([]);      // Clear previous top moves
+        console.log(`getEvaluation: Requesting evaluation for FEN: ${fen}`);
         stockfish.current.postMessage(`position fen ${fen}`);
         stockfish.current.postMessage('go depth 15'); // Request evaluation up to depth 15
     }, [engineStatus]); // Add engineStatus to dependencies
@@ -318,9 +322,11 @@ function GameAnalysis() {
     
             const onMessage = (event) => {
                 const message = String(event.data);
-    
+                console.log("Stockfish message:", message); // Log all messages
+
                 if (message === 'readyok') {
                     setEngineStatus('Ready');
+                    console.log("Stockfish is Ready.");
                 } else if (message.startsWith('uciok')) {
                     worker.postMessage('isready');
                 } else {
@@ -328,22 +334,34 @@ function GameAnalysis() {
                         const scoreMatch = message.match(/score cp (-?\d+)/);
                         if (scoreMatch) {
                             // Convert centipawns to pawn evaluation
-                            setEvaluation((parseInt(scoreMatch[1], 10) / 100).toFixed(2));
+                            const newEval = (parseInt(scoreMatch[1], 10) / 100).toFixed(2);
+                            setEvaluation(newEval);
+                            console.log("Evaluation updated to:", newEval);
                         }
                     } else if (message.includes('info depth') && message.includes(' pv ')) {
+                        console.log("PV message received:", message);
                         const moves = message.split(' pv ')[1].split(' ');
                         const topEngineMoves = [];
                         const tempGame = new Chess(currentGameForEngine.current.fen());
+                        console.log("Current board (FEN) for engine parsing:", currentGameForEngine.current.fen());
+                        console.log("Raw engine PV moves:", moves);
+                        
                         for (let i = 0; i < Math.min(3, moves.length); i++) {
                             try {
                                 const moveResult = tempGame.move(moves[i], { sloppy: true });
                                 if (moveResult) {
                                     topEngineMoves.push(moveResult.san);
                                     tempGame.undo(); // Undo the move to find next top move from same position
+                                    console.log(`Processed move: ${moveResult.san}. Temp game FEN after undo: ${tempGame.fen()}`);
+                                } else {
+                                    console.log(`Move ${moves[i]} was illegal in temp game for FEN: ${tempGame.fen()}`);
                                 }
-                            } catch (e) { /* ignore invalid moves from engine output */ }
+                            } catch (e) { 
+                                console.error("Error processing engine move:", moves[i], e);
+                            }
                         }
                         setTopMoves(topEngineMoves);
+                        console.log("Top moves set to:", topEngineMoves);
                     }
                 }
             };
@@ -365,7 +383,7 @@ function GameAnalysis() {
             setEngineStatus('Failed to load worker.');
             console.error("Failed to initialize Stockfish worker:", error);
         }
-    }, []);
+    }, []); // Empty dependency array means this runs once on mount
     
 
     const handleLoadPgn = () => {

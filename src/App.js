@@ -390,8 +390,8 @@ function GameAnalysis() {
         };
 
         try {
-            await stockfish.current.postMessage(`position fen ${fen}`);
-            await stockfish.current.postMessage('go depth 15');
+            stockfish.current.postMessage(`position fen ${fen}`);
+            stockfish.current.postMessage('go depth 15');
 
             return new Promise((resolve) => {
                 const onMessage = (event) => {
@@ -448,7 +448,7 @@ function GameAnalysis() {
     
     useEffect(() => {
         const initStockfish = () => {
-            const worker = new Worker(`${process.env.PUBLIC_URL}/stockfish.js`);
+            const worker = new Worker(`${process.env.PUBLIC_URL}/stockfish-17-lite-single.js`);
             stockfish.current = worker;
 
             worker.addEventListener('message', (event) => {
@@ -465,8 +465,6 @@ function GameAnalysis() {
                 setEngineStatus(`Engine error. Please reload.`);
                 console.error("Stockfish worker error:", e);
                 worker.terminate();
-                // Optionally, you can try to re-initialize the worker here
-                // initStockfish(); 
             });
 
             worker.postMessage('uci');

@@ -3,7 +3,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { Chessboard } from 'react-chessboard';
 import { Chess } from 'chess.js';
 
-// --- Constants (from your file) ---
+// --- Constants ---
 const FRIENDS = [
     { name: "Ulysse", username: "realulysse" },
     { name: "Simon", username: "poulet_tao" },
@@ -20,8 +20,7 @@ const MANUAL_INITIAL_RATINGS = {
     "kevor24": { "Rapid": 702, "Blitz": 846, "Bullet": 577 }
 };
 
-
-// --- Theme and Utility Hooks (from your file) ---
+// --- Theme and Utility Hooks ---
 const useTheme = () => {
     const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
     useEffect(() => {
@@ -34,10 +33,8 @@ const useTheme = () => {
 };
 
 // --- API & Data Fetching ---
-// **FIX**: The base URL is removed. The fetchData function now uses relative paths.
 async function fetchData(endpoint) {
     try {
-        // **FIX**: The path now starts with /api/ which will be correctly routed by Vercel.
         const response = await fetch(`/api${endpoint}`);
         if (!response.ok) throw new Error(`Network response was not ok for ${endpoint}`);
         return await response.json();
@@ -47,10 +44,14 @@ async function fetchData(endpoint) {
     }
 }
 
-
-// --- UI Components (from your file) ---
+// --- UI Components ---
 const SunIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>;
 const MoonIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>;
+
+// Arrow icons for navigation
+const FaArrowLeft = () => <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 256 512" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M192 448c-8.188 0-16.38-3.125-22.62-9.375l-160-160c-12.5-12.5-12.5-32.75 0-45.25l160-160c12.5-12.5 32.75-12.5 45.25 0s12.5 32.75 0 45.25L77.25 256l137.4 137.4c12.5 12.5 12.5 32.75 0 45.25C208.4 444.9 200.2 448 192 448z"></path></svg>;
+const FaArrowRight = () => <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 256 512" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M64 448c-8.188 0-16.38-3.125-22.62-9.375c-12.5-12.5-12.5-32.75 0-45.25L178.8 256L41.38 118.6c-12.5-12.5-12.5-32.75 0-45.25s32.75-12.5 45.25 0l160 160c12.5 12.5 12.5 32.75 0 45.25l-160 160C80.38 444.9 72.19 448 64 448z"></path></svg>;
+
 
 function Dashboard({ currentRatings, ratingHistory, theme }) {
     const [chartData, setChartData] = useState([]);
@@ -203,9 +204,6 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
             try {
                 const stats = await fetch(`https://api.chess.com/pub/player/${selectedPlayer}/stats`).then(res => res.json());
 
-                // REMOVE THIS LINE:
-                // const friendName = FRIENDS.find(f => f.username === selectedPlayer)?.name;
-
                 setPlayerData({ stats });
             } catch (error) {
                 console.error("Failed to fetch player data:", error);
@@ -294,7 +292,7 @@ function GameAnalysis() {
     const [pgnError, setPgnError] = useState('');
     const [game, setGame] = useState(new Chess());
     const [history, setHistory] = useState([]);
-    const [currentMove, setCurrentMove] = useState(-1);
+    const [currentMove, setCurrentMove] = useState(-1); // -1 for initial position
     const [evaluation, setEvaluation] = useState('');
     const [topMoves, setTopMoves] = useState([]);
     const [engineStatus, setEngineStatus] = useState('Loading...');
@@ -320,10 +318,10 @@ function GameAnalysis() {
                     if (message.includes('score cp')) {
                         const scoreMatch = message.match(/score cp (-?\d+)/);
                         if (scoreMatch) {
+                            // Convert centipawns to pawn evaluation
                             setEvaluation((parseInt(scoreMatch[1], 10) / 100).toFixed(2));
                         }
-                    }
-                    if (message.includes('info depth') && message.includes(' pv ')) {
+                    } else if (message.includes('info depth') && message.includes(' pv ')) {
                         const moves = message.split(' pv ')[1].split(' ');
                         const topEngineMoves = [];
                         const tempGame = new Chess(currentGameForEngine.current.fen());
@@ -332,9 +330,9 @@ function GameAnalysis() {
                                 const moveResult = tempGame.move(moves[i], { sloppy: true });
                                 if (moveResult) {
                                     topEngineMoves.push(moveResult.san);
-                                    tempGame.undo();
+                                    tempGame.undo(); // Undo the move to find next top move from same position
                                 }
-                            } catch (e) { /* ignore */ }
+                            } catch (e) { /* ignore invalid moves from engine output */ }
                         }
                         setTopMoves(topEngineMoves);
                     }
@@ -348,7 +346,7 @@ function GameAnalysis() {
                  console.error("Stockfish worker error:", e);
             };
     
-            worker.postMessage('uci');
+            worker.postMessage('uci'); // Initialize UCI protocol
     
             return () => {
                 worker.removeEventListener('message', onMessage);
@@ -363,10 +361,10 @@ function GameAnalysis() {
 
     const getEvaluation = (fen) => {
         if (engineStatus !== 'Ready' || !stockfish.current) return;
-        setEvaluation('...');
-        setTopMoves([]);
+        setEvaluation('...'); // Show loading state for evaluation
+        setTopMoves([]);      // Clear previous top moves
         stockfish.current.postMessage(`position fen ${fen}`);
-        stockfish.current.postMessage('go depth 15');
+        stockfish.current.postMessage('go depth 15'); // Request evaluation up to depth 15
     };
 
     const handleLoadPgn = () => {
@@ -374,30 +372,36 @@ function GameAnalysis() {
         const newGame = new Chess();
         try {
             let pgnString = pgn.trim();
+            // Regular expression to find PGN tags like [Event "Casual Game"]
             const tagRegex = /\[\s*(\w+)\s*"([^"]*)"\s*\]/g;
             const tags = pgnString.match(tagRegex) || [];
+            // Remove tags and comments/variations to get clean movetext
             const movetext = pgnString.replace(tagRegex, '').trim();
             const cleanedMovetext = movetext
-                .replace(/\{[^}]*?\}/g, '')
-                .replace(/\([^)]*?\)/g, '')
-                .replace(/\$\d+/g, '')
-                .replace(/[\r\n\t]+/g, ' ')
+                .replace(/\{[^}]*?\}/g, '') // Remove comments in curly braces
+                .replace(/\([^)]*?\)/g, '') // Remove variations in parentheses
+                .replace(/\$\d+/g, '')       // Remove numeric annotation glyphs
+                .replace(/[\r\n\t]+/g, ' ')  // Replace newlines/tabs with spaces
                 .trim();
+            
+            // Reconstruct PGN with cleaned movetext for loading
             const cleanedPgn = tags.join('\n') + '\n\n' + cleanedMovetext;
             newGame.loadPgn(cleanedPgn);
 
             if (newGame.history().length === 0) {
                 throw new Error("The PGN was loaded, but it contains no moves.");
             }
+            // Reset to initial board state for analysis
             const startingFen = new Chess().fen();
             setGame(new Chess(startingFen));
-            currentGameForEngine.current = new Chess(startingFen);
-            setHistory(newGame.history({ verbose: true }));
-            setCurrentMove(-1);
-            getEvaluation(startingFen);
+            currentGameForEngine.current = new Chess(startingFen); // Keep engine game state separate
+            setHistory(newGame.history({ verbose: true })); // Store verbose history for SAN and other data
+            setCurrentMove(-1); // Go to initial position
+            getEvaluation(startingFen); // Get evaluation for starting position
 
         } catch (e) {
             setPgnError(e.message || "An unexpected error occurred while loading the PGN.");
+            // Reset state on error
             setGame(new Chess());
             setHistory([]);
             setCurrentMove(-1);
@@ -406,29 +410,60 @@ function GameAnalysis() {
         }
     };
 
-    const navigateToMove = (index) => {
-        const newGame = new Chess();
-        const fullHistory = history.map(h => h.san);
+    const navigateToMove = useCallback((index) => {
+        const tempGame = new Chess();
+        const fullHistory = history.map(h => h.san); // Get SAN for all moves
+        // Apply moves up to the target index
         for (let i = 0; i <= index; i++) {
-            newGame.move(fullHistory[i]);
+            if (fullHistory[i]) {
+                tempGame.move(fullHistory[i]);
+            }
         }
-        setGame(newGame);
-        currentGameForEngine.current = new Chess(newGame.fen());
-        setCurrentMove(index);
-        getEvaluation(newGame.fen());
-    };
+        setGame(tempGame); // Update chessboard
+        currentGameForEngine.current = new Chess(tempGame.fen()); // Update engine's game state
+        setCurrentMove(index); // Set current move index
+        getEvaluation(tempGame.fen()); // Get evaluation for the new position
+    }, [history, getEvaluation]); // Depend on history and getEvaluation
+
+    // Handlers for arrow navigation
+    const goToPreviousMove = useCallback(() => {
+        if (currentMove > -1) {
+            navigateToMove(currentMove - 1);
+        }
+    }, [currentMove, navigateToMove]);
+
+    const goToNextMove = useCallback(() => {
+        if (currentMove < history.length - 1) {
+            navigateToMove(currentMove + 1);
+        }
+    }, [currentMove, history.length, navigateToMove]);
 
     const isGameLoaded = history.length > 0;
 
     const EvaluationBar = ({ score }) => {
         const numScore = parseFloat(score);
-        if (isNaN(numScore)) return null;
+        // Handle '...' loading state or invalid scores
+        if (isNaN(numScore)) {
+            return (
+                <div className="w-full bg-gray-700 rounded-full h-6 dark:bg-gray-800 my-2 relative overflow-hidden">
+                    <div className="absolute inset-0 flex items-center justify-center text-sm font-bold text-gray-300">
+                        Eval: {score}
+                    </div>
+                </div>
+            );
+        }
+        // Clamp score for visualization, e.g., between -10 and 10 pawns
         const clampedScore = Math.max(-10, Math.min(10, numScore));
-        const percentage = 50 + (clampedScore * 5);
+        // Calculate percentage for white's advantage (50% is even, >50% white, <50% black)
+        const percentage = 50 + (clampedScore * 5); // Each pawn is 5%
+
+        // Determine background color based on advantage
+        const barColor = numScore >= 0 ? 'bg-white' : 'bg-gray-800 dark:bg-gray-200'; // White for positive/neutral, a darker color for black advantage
+
         return (
             <div className="w-full bg-gray-700 rounded-full h-6 dark:bg-gray-800 my-2 relative overflow-hidden">
-                <div className="bg-white h-6 rounded-full" style={{ width: `${percentage}%`, transition: 'width 0.3s ease-in-out' }} />
-                <div className="absolute inset-0 flex items-center justify-center text-sm font-bold text-black mix-blend-difference">
+                <div className={`${barColor} h-full absolute top-0 left-0 transition-width duration-300 ease-in-out`} style={{ width: `${percentage}%` }} />
+                 <div className="absolute inset-0 flex items-center justify-center text-sm font-bold text-black dark:text-white mix-blend-difference">
                     Eval: {score}
                 </div>
             </div>
@@ -477,14 +512,24 @@ function GameAnalysis() {
 
             {isGameLoaded && (
                 <div className="mt-8 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
-                    <h2 className="text-2xl font-semibold mb-4 text-gray-700 dark:text-gray-300">Moves</h2>
-                    <div className="flex flex-wrap gap-2">
-                        <button onClick={() => navigateToMove(-1)} className={`px-3 py-1 text-sm rounded-md ${currentMove === -1 ? 'bg-indigo-600 text-white' : 'bg-gray-200 dark:bg-gray-700 dark:text-gray-300'}`}>Start</button>
-                        {history.map((move, index) => (
-                            <button key={index} onClick={() => navigateToMove(index)} className={`px-3 py-1 text-sm rounded-md ${currentMove === index ? 'bg-indigo-600 text-white' : 'bg-gray-200 dark:bg-gray-700 dark:text-gray-300'}`}>
-                                {Math.floor(index / 2) + 1}.{index % 2 === 0 ? '' : '..'} {move.san}
-                            </button>
-                        ))}
+                    <h2 className="text-2xl font-semibold mb-4 text-gray-700 dark:text-gray-300">Navigate Moves</h2>
+                    <div className="flex justify-center gap-4">
+                        <button
+                            onClick={goToPreviousMove}
+                            disabled={currentMove <= -1} // Disable if at start position or before
+                            className="p-3 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+                            aria-label="Previous move"
+                        >
+                            <FaArrowLeft />
+                        </button>
+                        <button
+                            onClick={goToNextMove}
+                            disabled={currentMove >= history.length - 1} // Disable if at last move
+                            className="p-3 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+                            aria-label="Next move"
+                        >
+                            <FaArrowRight />
+                        </button>
                     </div>
                 </div>
             )}
@@ -497,7 +542,7 @@ export default function App() {
     const [activeTab, setActiveTab] = useState('Dashboard');
     const [currentRatings, setCurrentRatings] = useState([]);
     const [ratingHistory, setRatingHistory] = useState([]);
-    const [openingStats, setOpeningStats] = useState([]); // **FIX**: Added missing state
+    const [openingStats, setOpeningStats] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -505,10 +550,9 @@ export default function App() {
         setLoading(true);
         setError(null);
         try {
-            // **FIX**: Corrected the endpoint names from your original file
             const ratingsData = await fetchData('/current-ratings');
             const historyData = await fetchData('/rating-history');
-            const openingsData = await fetchData('/opening-stats'); // **FIX**: Fetch opening stats
+            const openingsData = await fetchData('/opening-stats');
 
             if (!Array.isArray(ratingsData) || !Array.isArray(historyData) || !Array.isArray(openingsData)) {
                 throw new Error("Data from API is not in the expected format.");
@@ -543,7 +587,7 @@ export default function App() {
 
             setCurrentRatings(ratingsWithChanges);
             setRatingHistory(historyWithPlayerNames);
-            setOpeningStats(openingsData); // **FIX**: Save the fetched opening stats
+            setOpeningStats(openingsData);
         } catch (e) {
             setError("Could not connect to the backend API. Please ensure the 'api.py' server is running.");
             console.error(e);

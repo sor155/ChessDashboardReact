@@ -11,11 +11,11 @@
   },
   {
     "player_username": "adrienbourque",
-    "opening_name": "Sicilian Defense",
+    "opening_name": "Sicilian",
     "color": "black",
     "games_played": 2,
-    "wins": 1,
-    "losses": 1,
+    "wins": 0,
+    "losses": 2,
     "draws": 0,
     "player": "Adrien"
   },
@@ -63,6 +63,16 @@
     "player_username": "adrienbourque",
     "opening_name": "English",
     "color": "black",
+    "games_played": 1,
+    "wins": 0,
+    "losses": 1,
+    "draws": 0,
+    "player": "Adrien"
+  },
+  {
+    "player_username": "adrienbourque",
+    "opening_name": "Four Knights Game",
+    "color": "white",
     "games_played": 1,
     "wins": 0,
     "losses": 1,
@@ -151,18 +161,8 @@
   },
   {
     "player_username": "adrienbourque",
-    "opening_name": "Sicilian",
+    "opening_name": "Sicilian Defense",
     "color": "black",
-    "games_played": 1,
-    "wins": 0,
-    "losses": 1,
-    "draws": 0,
-    "player": "Adrien"
-  },
-  {
-    "player_username": "adrienbourque",
-    "opening_name": "Slav Defense",
-    "color": "white",
     "games_played": 1,
     "wins": 0,
     "losses": 1,
@@ -433,15 +433,25 @@
     "player_username": "poulet_tao",
     "opening_name": "Ruy Lopez",
     "color": "white",
-    "games_played": 4,
+    "games_played": 5,
     "wins": 1,
-    "losses": 2,
+    "losses": 3,
     "draws": 1,
     "player": "Simon"
   },
   {
     "player_username": "poulet_tao",
     "opening_name": "English Opening",
+    "color": "black",
+    "games_played": 2,
+    "wins": 1,
+    "losses": 1,
+    "draws": 0,
+    "player": "Simon"
+  },
+  {
+    "player_username": "poulet_tao",
+    "opening_name": "Four Knights Game",
     "color": "black",
     "games_played": 2,
     "wins": 1,
@@ -491,26 +501,6 @@
   },
   {
     "player_username": "poulet_tao",
-    "opening_name": "Four Knights Game",
-    "color": "black",
-    "games_played": 1,
-    "wins": 0,
-    "losses": 1,
-    "draws": 0,
-    "player": "Simon"
-  },
-  {
-    "player_username": "poulet_tao",
-    "opening_name": "King's Pawn Game",
-    "color": "white",
-    "games_played": 1,
-    "wins": 0,
-    "losses": 1,
-    "draws": 0,
-    "player": "Simon"
-  },
-  {
-    "player_username": "poulet_tao",
     "opening_name": "Nimzowitsch Defense",
     "color": "white",
     "games_played": 1,
@@ -541,21 +531,11 @@
   },
   {
     "player_username": "poulet_tao",
-    "opening_name": "Scandinavian",
-    "color": "black",
-    "games_played": 1,
-    "wins": 0,
-    "losses": 1,
-    "draws": 0,
-    "player": "Simon"
-  },
-  {
-    "player_username": "poulet_tao",
-    "opening_name": "Sicilian Defense",
+    "opening_name": "Sicilian",
     "color": "white",
     "games_played": 1,
-    "wins": 0,
-    "losses": 1,
+    "wins": 1,
+    "losses": 0,
     "draws": 0,
     "player": "Simon"
   },

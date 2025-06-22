@@ -369,97 +369,99 @@ function GameAnalysis() {
     const [isGeneratingCommentary, setIsGeneratingCommentary] = useState(false);
     const stockfish = useRef(null);
     const messageHistory = useRef([]);
+    const analysisCache = useRef({});
 
-    const generateTemplatedCommentary = useCallback((lastMoveSan, playerEval, bestMove) => {
-      setIsGeneratingCommentary(true);
-      
-      let commentaryText = "";
-      if (!lastMoveSan) {
-        commentaryText = "This is the starting position. Load a PGN and make a move to begin analysis.";
-      } else {
-          const evalDiff = Math.abs(parseFloat(playerEval) - parseFloat(bestMove.score));
-          let moveQuality = "";
+    const generateTemplatedCommentary = useCallback((lastMoveSan, currentEval, prevBestEval) => {
+        setIsGeneratingCommentary(true);
+        let commentaryText = "";
 
-          if (evalDiff > 1.5) {
-              moveQuality = "a blunder";
-          } else if (evalDiff > 0.7) {
-              moveQuality = "an inaccuracy";
-          } else if (playerEval >= bestMove.score) {
-              moveQuality = "an excellent move";
-          } else {
-              moveQuality = "a good move";
-          }
+        if (!lastMoveSan) {
+            commentaryText = "This is the starting position. Load a PGN and make a move to begin analysis.";
+        } else {
+            const currentScore = parseFloat(currentEval);
+            const prevScore = parseFloat(prevBestEval);
+            
+            // The logic requires the perspective of the player who just moved.
+            // A drop for white is a positive change for black and vice-versa.
+            // We flip the sign of the previous evaluation for this comparison.
+            const evalDiff = -prevScore - currentScore;
 
-          commentaryText = `The move ${lastMoveSan} is ${moveQuality}. `;
-          if (lastMoveSan !== bestMove.san) {
-              commentaryText += `The engine suggests ${bestMove.san} with an evaluation of ${bestMove.score}.`;
-          }
-      }
+            let moveQuality = "";
+            if (evalDiff < -1.5) {
+                moveQuality = "a blunder";
+            } else if (evalDiff < -0.7) {
+                moveQuality = "an inaccuracy";
+            } else if (evalDiff > 0.3) {
+                moveQuality = "an excellent move";
+            } else {
+                moveQuality = "a good move";
+            }
 
-      setCommentary(commentaryText);
-      setIsGeneratingCommentary(false);
+            commentaryText = `The move ${lastMoveSan} is ${moveQuality}.`;
+        }
+
+        setCommentary(commentaryText);
+        setIsGeneratingCommentary(false);
     }, []);
 
     const getEvaluation = useCallback((fen, lastMoveSan) => {
-        if (engineStatus !== 'Ready' || !stockfish.current) return;
-        setEvaluation('...');
-        setTopMoves([]);
-        setCommentary('');
-        
-        const onMessage = (event) => {
-            const message = String(event.data);
-            messageHistory.current.push(message);
+        return new Promise((resolve) => {
+            if (analysisCache.current[fen]) {
+                resolve(analysisCache.current[fen]);
+                return;
+            }
 
-            if (message.startsWith('bestmove')) {
-                const finalTopMoves = [];
-                const tempGame = new Chess(fen);
-                 messageHistory.current.forEach(line => {
-                    if(line.startsWith('info depth') && line.includes('multipv')) {
-                        const multipvMatch = line.match(/multipv (\d+)/);
-                        const scoreMatch = line.match(/score (cp|mate) (-?\d+)/);
-                        const pvMatch = line.match(/ pv (.+)/);
+            if (engineStatus !== 'Ready' || !stockfish.current) {
+                resolve(null);
+                return;
+            };
 
-                        if (multipvMatch && scoreMatch && pvMatch) {
-                            const pvIndex = parseInt(multipvMatch[1], 10) - 1;
-                            const scoreType = scoreMatch[1];
-                            let scoreValue = parseInt(scoreMatch[2], 10);
-                            const firstMove = pvMatch[1].split(' ')[0];
+            const onMessage = (event) => {
+                const message = String(event.data);
+                messageHistory.current.push(message);
 
-                            if(scoreType === 'cp'){
-                                scoreValue = (scoreValue / 100.0).toFixed(2);
-                            } else {
-                                scoreValue = `M${scoreValue}`;
-                            }
-                            
-                            const moveResult = tempGame.move(firstMove, { sloppy: true });
-                            if (moveResult) {
-                                finalTopMoves[pvIndex] = {san: moveResult.san, score: scoreValue};
-                                tempGame.undo();
+                if (message.startsWith('bestmove')) {
+                    const finalTopMoves = [];
+                    const tempGame = new Chess(fen);
+                    messageHistory.current.forEach(line => {
+                        if (line.startsWith('info depth') && line.includes('multipv')) {
+                            const multipvMatch = line.match(/multipv (\d+)/);
+                            const scoreMatch = line.match(/score (cp|mate) (-?\d+)/);
+                            const pvMatch = line.match(/ pv (.+)/);
+
+                            if (multipvMatch && scoreMatch && pvMatch) {
+                                const pvIndex = parseInt(multipvMatch[1], 10) - 1;
+                                const scoreType = scoreMatch[1];
+                                let scoreValue = parseInt(scoreMatch[2], 10);
+                                const firstMove = pvMatch[1].split(' ')[0];
+
+                                if (scoreType === 'cp') {
+                                    scoreValue = (scoreValue / 100.0).toFixed(2);
+                                } else {
+                                    scoreValue = `M${scoreValue}`;
+                                }
+
+                                const moveResult = tempGame.move(firstMove, { sloppy: true });
+                                if (moveResult) {
+                                    finalTopMoves[pvIndex] = { san: moveResult.san, score: scoreValue };
+                                    tempGame.undo();
+                                }
                             }
                         }
-                    }
-                });
-                
-                if(finalTopMoves.length > 0) {
-                    setEvaluation(finalTopMoves[0].score);
-                    setTopMoves(finalTopMoves.slice(0,3));
-                    if(lastMoveSan) {
-                        generateTemplatedCommentary(lastMoveSan, finalTopMoves[0].score, finalTopMoves[0]);
-                    } else {
-                        setCommentary('This is the starting position. Make a move or navigate to see commentary.');
-                    }
+                    });
+
+                    stockfish.current.removeEventListener('message', onMessage);
+                    analysisCache.current[fen] = finalTopMoves;
+                    resolve(finalTopMoves);
                 }
-                
-                stockfish.current.removeEventListener('message', onMessage);
-            }
-        };
-
-        stockfish.current.addEventListener('message', onMessage);
-        messageHistory.current = [];
-        stockfish.current.postMessage(`position fen ${fen}`);
-        stockfish.current.postMessage('go depth 15');
-    }, [engineStatus, generateTemplatedCommentary]);
-
+            };
+            stockfish.current.addEventListener('message', onMessage);
+            messageHistory.current = [];
+            stockfish.current.postMessage(`position fen ${fen}`);
+            stockfish.current.postMessage('go depth 15');
+        });
+    }, [engineStatus]);
+    
     useEffect(() => {
         const STOCKFISH_URL = process.env.PUBLIC_URL + '/stockfish-17-lite-single.js';
         let worker;
@@ -517,7 +519,13 @@ function GameAnalysis() {
             setGame(new Chess(startingFen));
             setHistory(newGame.history({ verbose: true }));
             setCurrentMove(-1);
-            getEvaluation(startingFen, null);
+            getEvaluation(startingFen, null).then(analysis => {
+                if (analysis && analysis.length > 0) {
+                    setEvaluation(analysis[0].score);
+                    setTopMoves(analysis);
+                    setCommentary('This is the starting position. Make a move or navigate to see commentary.');
+                }
+            });
 
         } catch (e) {
             setPgnError(e.message || "Error loading PGN.");
@@ -530,26 +538,46 @@ function GameAnalysis() {
         }
     };
 
-    const navigateToMove = useCallback((index) => {
+    const navigateToMove = useCallback(async (index) => {
         const tempGame = new Chess();
         const fullHistory = history.map(h => h.san);
         let lastMoveSan = null;
-        for (let i = 0; i <= index; i++) {
-            if (fullHistory[i]) {
-                const moveResult = tempGame.move(fullHistory[i]);
-                if(i === index){
-                    lastMoveSan = moveResult.san;
-                }
-            }
+        let fenBefore = new Chess().fen();
+
+        for (let i = 0; i < index; i++) {
+             tempGame.move(fullHistory[i]);
         }
+        fenBefore = tempGame.fen();
+        
+        const moveResult = tempGame.move(fullHistory[index]);
+        if(moveResult) lastMoveSan = moveResult.san;
+
         setGame(tempGame);
         setCurrentMove(index);
-        getEvaluation(tempGame.fen(), lastMoveSan);
-    }, [history, getEvaluation]);
+        
+        const analysisAfter = await getEvaluation(tempGame.fen(), lastMoveSan);
+        const analysisBefore = await getEvaluation(fenBefore, null);
+        
+        if (analysisAfter && analysisAfter.length > 0 && analysisBefore && analysisBefore.length > 0) {
+             setEvaluation(analysisAfter[0].score);
+             setTopMoves(analysisAfter.slice(0,3));
+             generateTemplatedCommentary(lastMoveSan, analysisAfter[0].score, analysisBefore[0]);
+        }
+    }, [history, getEvaluation, generateTemplatedCommentary]);
 
     const goToPreviousMove = useCallback(() => {
         if (currentMove > -1) navigateToMove(currentMove - 1);
-    }, [currentMove, navigateToMove]);
+        else if (currentMove === 0) { // Special case for going back to start
+            setGame(new Chess());
+            setCurrentMove(-1);
+            getEvaluation(new Chess().fen(), null).then(analysis => {
+                if (analysis && analysis.length > 0) {
+                    setEvaluation(analysis[0].score);
+                    setTopMoves(analysis);
+                }
+            });
+        }
+    }, [currentMove, navigateToMove, getEvaluation]);
 
     const goToNextMove = useCallback(() => {
         if (currentMove < history.length - 1) navigateToMove(currentMove + 1);
@@ -627,7 +655,7 @@ function GameAnalysis() {
                                  </ol>
                              </div>
                              <div className="flex justify-center gap-4 mb-4">
-                                 <button onClick={goToPreviousMove} disabled={currentMove <= -1} className="p-3 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed" aria-label="Previous move"><FaArrowLeft /></button>
+                                 <button onClick={goToPreviousMove} disabled={currentMove < 0} className="p-3 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed" aria-label="Previous move"><FaArrowLeft /></button>
                                  <button onClick={goToNextMove} disabled={currentMove >= history.length - 1} className="p-3 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed" aria-label="Next move"><FaArrowRight /></button>
                              </div>
                              <div>

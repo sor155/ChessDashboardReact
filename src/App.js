@@ -658,6 +658,10 @@ export default function App() {
     );
 
     const toggleMobileMenu = () => setIsMobileMenuOpen(prev => !prev);
+    // Wrapped toggleTheme in useCallback
+    const toggleTheme = useCallback(() => {
+        setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
+    }, [setTheme]);
 
 
     return (

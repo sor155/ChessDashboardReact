@@ -380,6 +380,8 @@ function GameAnalysis() {
     const [engineStatus, setEngineStatus] = useState('Loading...');
     const [opening, setOpening] = useState('');
     const [gameData, setGameData] = useState(null);
+    // *** NEW STATE FOR THE ARROW ***
+    const [topMoveArrow, setTopMoveArrow] = useState([]);
     const stockfish = useRef(null);
     const analysisCache = useRef({});
     const ecoData = useRef({});
@@ -409,6 +411,14 @@ function GameAnalysis() {
             const cachedAnalysis = analysisCache.current[fen];
             setEvaluation(cachedAnalysis[0]?.score || '');
             setTopMoves(cachedAnalysis);
+            // Set arrow for cached analysis
+            if (cachedAnalysis.length > 0) {
+                const tempGame = new Chess(fen);
+                const move = tempGame.move(cachedAnalysis[0].san, { sloppy: true });
+                if (move) {
+                    setTopMoveArrow([[move.from, move.to, 'green']]);
+                }
+            }
             return;
         }
 
@@ -418,6 +428,7 @@ function GameAnalysis() {
 
         setEvaluation('...');
         setTopMoves([]);
+        setTopMoveArrow([]); // Clear arrow on new analysis
 
         return new Promise((resolve) => {
             const messageHistory = [];
@@ -459,6 +470,16 @@ function GameAnalysis() {
                     analysisCache.current[fen] = finalTopMoves;
                     setEvaluation(finalTopMoves[0]?.score || '');
                     setTopMoves(finalTopMoves);
+
+                    // *** SET THE ARROW FOR THE TOP MOVE ***
+                    if (finalTopMoves.length > 0) {
+                        const tempGameForArrow = new Chess(fen);
+                        const topMove = tempGameForArrow.move(finalTopMoves[0].san, { sloppy: true });
+                        if (topMove) {
+                            setTopMoveArrow([[topMove.from, topMove.to, 'green']]);
+                        }
+                    }
+                    
                     resolve(finalTopMoves);
                 }
             };
@@ -569,6 +590,7 @@ function GameAnalysis() {
             setEvaluation('');
             setTopMoves([]);
             setGameData(null);
+            setTopMoveArrow([]);
         }
     };
 
@@ -652,6 +674,7 @@ function GameAnalysis() {
                         position={game.fen()}
                         onPieceDrop={onPieceDrop}
                         boardWidth={Math.min(400, window.innerWidth - 60)}
+                        customArrows={topMoveArrow} // *** PASS ARROW DATA TO CHESSBOARD ***
                     />
                     {isGameLoaded && <EvaluationBar score={evaluation} />}
                     <GameInfo data={gameData} opening={opening} />

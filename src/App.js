@@ -356,6 +356,8 @@ function GameAnalysis() {
     const [topMoves, setTopMoves] = useState([]);
     const [engineStatus, setEngineStatus] = useState('Loading...');
     const [opening, setOpening] = useState('');
+    // *** NEW STATE FOR GAME METADATA ***
+    const [gameData, setGameData] = useState(null);
     const stockfish = useRef(null);
     const analysisCache = useRef({});
     const ecoData = useRef({});
@@ -373,7 +375,7 @@ function GameAnalysis() {
                     });
                 }
                 ecoData.current = allOpenings;
-            } catch (error) {
+            } catch (error) => {
                 console.error("Failed to load ECO data:", error);
             }
         };
@@ -392,7 +394,6 @@ function GameAnalysis() {
             return;
         }
 
-        // Set the evaluation to a loading state immediately
         setEvaluation('...');
         setTopMoves([]);
 
@@ -422,7 +423,7 @@ function GameAnalysis() {
                                 } else {
                                     scoreValue = `M${scoreValue}`;
                                 }
-                                
+
                                 const moveResult = tempGame.move(firstMove, { sloppy: true });
                                 if (moveResult) {
                                     finalTopMoves[pvIndex] = { san: moveResult.san, score: scoreValue };
@@ -431,7 +432,7 @@ function GameAnalysis() {
                             }
                         }
                     });
-                    
+
                     stockfish.current.removeEventListener('message', onMessage);
                     analysisCache.current[fen] = finalTopMoves;
                     setEvaluation(finalTopMoves[0]?.score || '');
@@ -441,10 +442,10 @@ function GameAnalysis() {
             };
             stockfish.current.addEventListener('message', onMessage);
             stockfish.current.postMessage(`position fen ${fen}`);
-            stockfish.current.postMessage('go depth 18'); // Using a slightly lower depth for faster interaction
+            stockfish.current.postMessage('go depth 18');
         });
     }, [engineStatus]);
-    
+
     useEffect(() => {
         const STOCKFISH_URL = process.env.PUBLIC_URL + '/stockfish-17-lite-single.js';
         let worker;
@@ -478,36 +479,30 @@ function GameAnalysis() {
             console.error("Failed to initialize Stockfish worker:", error);
         }
     }, []);
-    
-    // *** NEW FUNCTION TO HANDLE MOVES ON THE BOARD ***
+
     const onPieceDrop = (sourceSquare, targetSquare) => {
         const gameCopy = new Chess(game.fen());
         const move = gameCopy.move({
             from: sourceSquare,
             to: targetSquare,
-            promotion: 'q' // NOTE: always promote to a queen for simplicity
+            promotion: 'q'
         });
 
-        // If the move is illegal, do nothing
         if (move === null) {
             return false;
         }
 
-        // Update the game state
         setGame(gameCopy);
-        
-        // Update history and current move index
+
         const newHistory = history.slice(0, currentMove + 1);
         newHistory.push(move);
         setHistory(newHistory);
         setCurrentMove(newHistory.length - 1);
 
-        // Get the new evaluation
         getEvaluation(gameCopy.fen());
 
         return true;
     };
-
 
     const handleLoadPgn = () => {
         setPgnError('');
@@ -527,7 +522,16 @@ function GameAnalysis() {
             newGame.loadPgn(cleanedPgn);
 
             if (newGame.history().length === 0) throw new Error("PGN loaded, but no moves found.");
-            
+
+            // *** EXTRACT AND SET GAME METADATA ***
+            const header = newGame.header();
+            setGameData({
+                white: header.White || 'Unknown',
+                black: header.Black || 'Unknown',
+                result: header.Result || 'Unknown',
+                timeControl: header.TimeControl || 'N/A'
+            });
+
             analysisCache.current = {};
             const startingFen = new Chess().fen();
             setGame(new Chess(startingFen));
@@ -543,19 +547,20 @@ function GameAnalysis() {
             setCurrentMove(-1);
             setEvaluation('');
             setTopMoves([]);
+            setGameData(null); // Clear game data on error
         }
     };
 
     const navigateToMove = useCallback(async (index) => {
         if (index < 0 || index >= history.length) return;
-        
+
         const tempGameForFen = new Chess();
         const fullHistory = history.map(h => h.san);
-        
+
         for (let i = 0; i < index; i++) {
              tempGameForFen.move(fullHistory[i], { sloppy: true });
         }
-        
+
         const moveResult = tempGameForFen.move(fullHistory[index], { sloppy: true });
         if(!moveResult) {
             return;
@@ -563,9 +568,9 @@ function GameAnalysis() {
 
         setGame(new Chess(tempGameForFen.fen()));
         setCurrentMove(index);
-        
+
         await getEvaluation(tempGameForFen.fen());
-        
+
         const gameForPgn = new Chess();
         for(let i=0; i<=index; i++){
             gameForPgn.move(fullHistory[i], {sloppy: true});
@@ -577,7 +582,7 @@ function GameAnalysis() {
     }, [history, getEvaluation]);
 
     const goToPreviousMove = useCallback(() => {
-        if (currentMove === 0) { 
+        if (currentMove === 0) {
             setGame(new Chess());
             setCurrentMove(-1);
             getEvaluation(new Chess().fen());
@@ -617,12 +622,30 @@ function GameAnalysis() {
         );
     };
 
+    // *** NEW COMPONENT TO DISPLAY GAME INFO ***
+    const GameInfo = ({ data }) => {
+        if (!data) return null;
+        return (
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md mt-4 text-center">
+                <p className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                    {data.white} vs {data.black}
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Result: {data.result}
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Time Control: {data.timeControl}
+                </p>
+            </div>
+        );
+    };
+
+
     return (
         <div>
             <h1 className="text-4xl font-bold mb-8 text-gray-800 dark:text-gray-200">Chess Analysis</h1>
             <div className="flex flex-col lg:flex-row gap-8 items-start">
                 <div className="w-full lg:w-auto lg:max-w-md">
-                    {/* *** ADD onPieceDrop TO THE CHESSBOARD *** */}
                     <Chessboard
                         position={game.fen()}
                         onPieceDrop={onPieceDrop}
@@ -630,6 +653,8 @@ function GameAnalysis() {
                     />
                     {isGameLoaded && <EvaluationBar score={evaluation} />}
                     {opening && <div className="text-center mt-2 text-indigo-400 font-semibold">{opening}</div>}
+                    {/* *** RENDER THE NEW GAME INFO COMPONENT *** */}
+                    <GameInfo data={gameData} />
                 </div>
                 <div className="w-full lg:flex-1 space-y-6">
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">

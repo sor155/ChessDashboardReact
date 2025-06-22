@@ -246,7 +246,16 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
                 {/* Added explicit height to the parent div for ResponsiveContainer */}
                 <div style={{ height: '250px' }}>
                     <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={data} layout="vertical" margin={{ top: 5, right: 20, left: 120, bottom: 5 }}>
+                        <BarChart
+                            data={data}
+                            layout="vertical"
+                            margin={{
+                                top: 5,
+                                right: 20,
+                                left: window.innerWidth < 768 ? 60 : 120, // Responsive left margin
+                                bottom: 5
+                            }}
+                        >
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis type="number" dataKey="games_played" stroke={chartColor} />
                             <YAxis type="category" dataKey="opening_name" width={120} stroke={chartColor} tick={{ fontSize: 12 }} />
@@ -514,7 +523,8 @@ function GameAnalysis() {
 
             <div className="flex flex-col lg:flex-row gap-8 items-start">
                 <div className="w-full lg:w-auto">
-                    <Chessboard position={game.fen()} boardWidth={400} />
+                    {/* Dynamic chessboard width */}
+                    <Chessboard position={game.fen()} boardWidth={Math.min(400, window.innerWidth * 0.9)} />
                     {isGameLoaded && <EvaluationBar score={evaluation} />}
                 </div>
                 <div className="w-full lg:flex-1 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
@@ -701,8 +711,8 @@ export default function App() {
             )}
 
             {/* Main Content */}
-            {/* Adjust margin-top for header height, margin-left for header width */}
-            <main className="flex-1 overflow-y-auto p-8 pt-16 pl-48"> {/* pt-16 to clear 40px header + some extra, pl-48 to clear 40px fixed header. (w-40 = 160px) -> p-40/160px */}
+            {/* Adjusted padding for main content based on header size and screen size */}
+            <main className="flex-1 overflow-y-auto p-8 pt-16 pl-8 lg:pl-48"> {/* Default pl-8 for mobile, pl-48 for larger screens */}
                 {renderTab()}
             </main>
         </div>

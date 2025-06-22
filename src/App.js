@@ -4,12 +4,13 @@ import { Chessboard } from 'react-chessboard';
 import { Chess } from 'chess.js';
 
 // Vercel Speed Insights and Analytics require installation via npm/yarn.
-// They are commented out to allow the application to compile in this environment.
-// In a real project, you would install them:
+// They are commented out in this environment to allow the application to compile.
+// In a real project/deployment, you would first install them using:
 // `npm install @vercel/speed-insights @vercel/analytics`
 // or `yarn add @vercel/speed-insights @vercel/analytics`
-import { SpeedInsights } from '@vercel/speed-insights/react';
-import { Analytics } from '@vercel/analytics/react';
+// After successful installation, uncomment the lines below and in the App component.
+ import { SpeedInsights } from '@vercel/speed-insights/react';
+ import { Analytics } from '@vercel/analytics/react';
 
 
 // --- Constants ---
@@ -18,7 +19,7 @@ const FRIENDS = [
     { name: "Simon", username: "poulet_tao" },
     { name: "Adrien", username: "adrienbourque" },
     { name: "Alex", username: "naatiry" },
-    { name: "Kevin", username: "kevor24" },
+    { name: "Kevin", username: "kevor24" }, // Fixed: changed '=' to ':'
 ];
 
 const MANUAL_INITIAL_RATINGS = {
@@ -384,7 +385,6 @@ function GameAnalysis() {
                         for (let i = 0; i < Math.min(5, moves.length); i++) { // Changed from 3 to 5
                             console.log(`Attempting to process move ${i + 1}: ${moves[i]} on FEN: ${tempGame.fen()}`);
                             try {
-                                // Removed { sloppy: true } as UCI moves are explicit
                                 const moveResult = tempGame.move(moves[i]);
                                 console.log(`Result of tempGame.move(${moves[i]}):`, moveResult);
                                 if (moveResult) {
@@ -737,10 +737,10 @@ export default function App() {
             <InternalApp />
             {/* SpeedInsights component is commented out as it caused compilation issues in this environment.
                 For local development/deployment, you would uncomment it and ensure the package is installed. */}
-            {/* <SpeedInsights /> */}
+             {/* <SpeedInsights /> */}
             {/* Analytics component is commented out as it requires installation.
                 For local development/deployment, uncomment it and ensure the package is installed. */}
-            {/* <Analytics /> */}
+             {/* <Analytics /> */}
         </>
     );
 }

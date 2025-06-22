@@ -19,7 +19,7 @@ const FRIENDS = [
     { name: "Simon", username: "poulet_tao" },
     { name: "Adrien", username: "adrienbourque" },
     { name: "Alex", username: "naatiry" },
-    { name: "Kevin", username: "kevor24" }, // Fixed: changed '=' to ':'
+    { name: "Kevin", username: "kevor24" },
 ];
 
 const MANUAL_INITIAL_RATINGS = {
@@ -32,7 +32,6 @@ const MANUAL_INITIAL_RATINGS = {
 
 // --- Theme and Utility Hooks ---
 const useTheme = () => {
-    // Changed the default fallback theme from 'light' to 'dark'
     const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
     useEffect(() => {
         const root = window.document.documentElement;
@@ -58,24 +57,10 @@ async function fetchData(endpoint) {
 // --- UI Components ---
 const SunIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>;
 const MoonIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>;
-
-// Arrow icons for navigation
 const FaArrowLeft = () => <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 256 512" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M192 448c-8.188 0-16.38-3.125-22.62-9.375l-160-160c-12.5-12.5-12.5-32.75 0-45.25l160-160c12.5-12.5 32.75-12.5 45.25 0s12.5 32.75 0 45.25L77.25 256l137.4 137.4c12.5 12.5 12.5 32.75 0 45.25C208.4 444.9 200.2 448 192 448z"></path></svg>;
 const FaArrowRight = () => <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 256 512" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M64 448c-8.188 0-16.38-3.125-22.62-9.375c-12.5-12.5-12.5-32.75 0-45.25L178.8 256L41.38 118.6c-12.5-12.5-12.5-32.75 0-45.25s32.75-12.5 45.25 0l160 160c12.5 12.5 12.5 32.75 0 45.25l-160 160C80.38 444.9 72.19 448 64 448z"></path></svg>;
-
-// Hamburger Menu Icon
-const MenuIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-    </svg>
-);
-
-// Close Icon for Menu
-const CloseIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-    </svg>
-);
+const MenuIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>;
+const CloseIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>;
 
 
 function Dashboard({ currentRatings, ratingHistory, theme }) {
@@ -111,7 +96,6 @@ function Dashboard({ currentRatings, ratingHistory, theme }) {
             return dataPoint;
         });
 
-        // Forward fill nulls to create continuous lines
         for (let i = 1; i < processedData.length; i++) {
             for (const player of selectedPlayers) {
                 if (processedData[i][player] === null || processedData[i][player] === undefined) {
@@ -372,98 +356,83 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
     );
 }
 
-
-
 function GameAnalysis() {
     const [pgn, setPgn] = useState('');
     const [pgnError, setPgnError] = useState('');
     const [game, setGame] = useState(new Chess());
     const [history, setHistory] = useState([]);
-    const [currentMove, setCurrentMove] = useState(-1); // -1 for initial position
+    const [currentMove, setCurrentMove] = useState(-1);
     const [evaluation, setEvaluation] = useState('');
     const [topMoves, setTopMoves] = useState([]);
     const [engineStatus, setEngineStatus] = useState('Loading...');
     const stockfish = useRef(null);
     const currentGameForEngine = useRef(new Chess());
 
-    // Memoize getEvaluation to prevent it from changing on every render
     const getEvaluation = useCallback((fen) => {
-        if (engineStatus !== 'Ready' || !stockfish.current) {
-            console.log("getEvaluation: Engine not ready or worker not available.");
-            return;
-        }
-        setEvaluation('...'); // Show loading state for evaluation
-        setTopMoves([]);      // Clear previous top moves
-        console.log(`getEvaluation: Requesting evaluation for FEN: ${fen}`);
+        if (engineStatus !== 'Ready' || !stockfish.current) return;
+        setEvaluation('...');
+        setTopMoves([]);
         stockfish.current.postMessage(`position fen ${fen}`);
-        stockfish.current.postMessage('go depth 15'); // Request evaluation up to depth 15
-    }, [engineStatus]); // Add engineStatus to dependencies
+        stockfish.current.postMessage('go depth 15');
+    }, [engineStatus]);
 
     useEffect(() => {
         const STOCKFISH_URL = process.env.PUBLIC_URL + '/stockfish-17-lite-single.js';
-
         let worker;
         try {
             worker = new Worker(STOCKFISH_URL);
             stockfish.current = worker;
+            
+            let currentTopMoves = [];
 
             const onMessage = (event) => {
                 const message = String(event.data);
-                console.log("Stockfish message:", message); // Log all messages
-
+                
                 if (message === 'readyok') {
                     setEngineStatus('Ready');
-                    console.log("Stockfish is Ready.");
+                    worker.postMessage('setoption name MultiPV value 3');
                 } else if (message.startsWith('uciok')) {
                     worker.postMessage('isready');
-                } else {
-                    if (message.includes('score cp')) {
-                        const scoreMatch = message.match(/score cp (-?\d+)/);
-                        if (scoreMatch) {
-                            // Convert centipawns to pawn evaluation
-                            const newEval = (parseInt(scoreMatch[1], 10) / 100).toFixed(2);
-                            setEvaluation(newEval);
-                            console.log("Evaluation updated to:", newEval);
-                        }
-                    } else if (message.includes('info depth') && message.includes(' pv ')) {
-                        console.log("PV message received:", message);
-                        const moves = message.split(' pv ')[1].split(' ');
-                        const topEngineMoves = [];
-                        const tempGame = new Chess(currentGameForEngine.current.fen());
-                        console.log("Current board (FEN) for engine parsing:", currentGameForEngine.current.fen());
-                        console.log("Raw engine PV moves:", moves);
+                } else if (message.startsWith('info depth') && message.includes('multipv')) {
+                    const multipvMatch = message.match(/multipv (\d+)/);
+                    const scoreMatch = message.match(/score (cp|mate) (-?\d+)/);
+                    const pvMatch = message.match(/ pv (.+)/);
 
-                        // Process up to 5 top moves
-                        for (let i = 0; i < Math.min(5, moves.length); i++) { // Changed from 3 to 5
-                            console.log(`Attempting to process move ${i + 1}: ${moves[i]} on FEN: ${tempGame.fen()}`);
-                            try {
-                                const moveResult = tempGame.move(moves[i]);
-                                console.log(`Result of tempGame.move(${moves[i]}):`, moveResult);
-                                if (moveResult) {
-                                    topEngineMoves.push(moveResult.san);
-                                    tempGame.undo(); // Undo the move to find next top move from same position
-                                    console.log(`Processed move: ${moveResult.san}. Temp game FEN after undo: ${tempGame.fen()}`);
-                                } else {
-                                    console.log(`Move ${moves[i]} was illegal or could not be parsed by chess.js for FEN: ${tempGame.fen()}`);
-                                }
-                            } catch (e) {
-                                console.error("Error processing engine move:", moves[i], e);
+                    if (multipvMatch && scoreMatch && pvMatch) {
+                        const pvIndex = parseInt(multipvMatch[1], 10) - 1;
+                        const scoreType = scoreMatch[1];
+                        let scoreValue = parseInt(scoreMatch[2], 10);
+                        const firstMove = pvMatch[1].split(' ')[0];
+
+                        if(scoreType === 'cp'){
+                            scoreValue = (scoreValue / 100.0).toFixed(2);
+                        } else {
+                            scoreValue = `M${scoreValue}`;
+                        }
+                        
+                        const tempGame = new Chess(currentGameForEngine.current.fen());
+                        const moveResult = tempGame.move(firstMove);
+                        if (moveResult) {
+                            currentTopMoves[pvIndex] = {san: moveResult.san, score: scoreValue};
+
+                            // Update state only for the first line initially to keep evaluation responsive
+                            if(pvIndex === 0) {
+                                setEvaluation(scoreValue);
                             }
                         }
-                        setTopMoves(topEngineMoves);
-                        console.log("Top moves set to:", topEngineMoves);
                     }
+                } else if (message.startsWith('bestmove')) {
+                    setTopMoves([...currentTopMoves].slice(0,3)); // Update with all collected moves
+                    currentTopMoves = []; // Reset for next analysis
                 }
             };
 
             worker.addEventListener('message', onMessage);
-
             worker.onerror = (e) => {
-                 setEngineStatus(`Error: Could not load Stockfish. Make sure stockfish-17-lite-single.js and .wasm are in /public.`);
+                 setEngineStatus(`Error: Stockfish failed. Ensure stockfish-17-lite-single.js is in /public.`);
                  console.error("Stockfish worker error:", e);
             };
-
-            worker.postMessage('uci'); // Initialize UCI protocol
+            worker.postMessage('uci');
 
             return () => {
                 worker.removeEventListener('message', onMessage);
@@ -473,44 +442,37 @@ function GameAnalysis() {
             setEngineStatus('Failed to load worker.');
             console.error("Failed to initialize Stockfish worker:", error);
         }
-    }, []); // Empty dependency array means this runs once on mount
-
+    }, []);
 
     const handleLoadPgn = () => {
         setPgnError('');
         const newGame = new Chess();
         try {
             let pgnString = pgn.trim();
-            // Regular expression to find PGN tags like [Event "Casual Game"]
             const tagRegex = /\[\s*(\w+)\s*"([^"]*)"\s*\]/g;
             const tags = pgnString.match(tagRegex) || [];
-            // Remove tags and comments/variations to get clean movetext
             const movetext = pgnString.replace(tagRegex, '').trim();
             const cleanedMovetext = movetext
-                .replace(/\{[^}]*?\}/g, '') // Remove comments in curly braces
-                .replace(/\([^)]*?\)/g, '') // Remove variations in parentheses
-                .replace(/\$\d+/g, '')       // Remove numeric annotation glyphs
-                .replace(/[\r\n\t]+/g, ' ')  // Replace newlines/tabs with spaces
+                .replace(/\{[^}]*?\}/g, '')
+                .replace(/\([^)]*?\)/g, '')
+                .replace(/\$\d+/g, '')
+                .replace(/[\r\n\t]+/g, ' ')
                 .trim();
 
-            // Reconstruct PGN with cleaned movetext for loading
             const cleanedPgn = tags.join('\n') + '\n\n' + cleanedMovetext;
             newGame.loadPgn(cleanedPgn);
 
-            if (newGame.history().length === 0) {
-                throw new Error("The PGN was loaded, but it contains no moves.");
-            }
-            // Reset to initial board state for analysis
+            if (newGame.history().length === 0) throw new Error("PGN loaded, but no moves found.");
+            
             const startingFen = new Chess().fen();
             setGame(new Chess(startingFen));
-            currentGameForEngine.current = new Chess(startingFen); // Keep engine game state separate
-            setHistory(newGame.history({ verbose: true })); // Store verbose history for SAN and other data
-            setCurrentMove(-1); // Go to initial position
-            getEvaluation(startingFen); // Get evaluation for starting position
+            currentGameForEngine.current = new Chess(startingFen);
+            setHistory(newGame.history({ verbose: true }));
+            setCurrentMove(-1);
+            getEvaluation(startingFen);
 
         } catch (e) {
-            setPgnError(e.message || "An unexpected error occurred while loading the PGN.");
-            // Reset state on error
+            setPgnError(e.message || "Error loading PGN.");
             setGame(new Chess());
             setHistory([]);
             setCurrentMove(-1);
@@ -521,61 +483,43 @@ function GameAnalysis() {
 
     const navigateToMove = useCallback((index) => {
         const tempGame = new Chess();
-        const fullHistory = history.map(h => h.san); // Get SAN for all moves
-        // Apply moves up to the target index
+        const fullHistory = history.map(h => h.san);
         for (let i = 0; i <= index; i++) {
-            if (fullHistory[i]) {
-                tempGame.move(fullHistory[i]);
-            }
+            if (fullHistory[i]) tempGame.move(fullHistory[i]);
         }
-        setGame(tempGame); // Update chessboard
-        currentGameForEngine.current = new Chess(tempGame.fen()); // Update engine's game state
-        setCurrentMove(index); // Set current move index
-        getEvaluation(tempGame.fen()); // Get evaluation for the new position
-    }, [history, getEvaluation]); // Depend on history and getEvaluation
+        setGame(tempGame);
+        currentGameForEngine.current = new Chess(tempGame.fen());
+        setCurrentMove(index);
+        getEvaluation(tempGame.fen());
+    }, [history, getEvaluation]);
 
-    // Handlers for arrow navigation
     const goToPreviousMove = useCallback(() => {
-        if (currentMove > -1) {
-            navigateToMove(currentMove - 1);
-        }
+        if (currentMove > -1) navigateToMove(currentMove - 1);
     }, [currentMove, navigateToMove]);
 
     const goToNextMove = useCallback(() => {
-        if (currentMove < history.length - 1) {
-            // Fix: Changed currentToMove to currentMove to correctly use state
-            navigateToMove(currentMove + 1);
-        }
+        if (currentMove < history.length - 1) navigateToMove(currentMove + 1);
     }, [currentMove, history.length, navigateToMove]);
 
     const isGameLoaded = history.length > 0;
 
     const EvaluationBar = ({ score }) => {
         const numScore = parseFloat(score);
-        // Handle '...' loading state or invalid scores
         if (isNaN(numScore)) {
             return (
                 <div className="w-full bg-gray-700 rounded-full h-6 dark:bg-gray-800 my-2 relative overflow-hidden">
-                    <div className="absolute inset-0 flex items-center justify-center text-sm font-bold text-gray-300">
-                        Eval: {score}
-                    </div>
+                    <div className="absolute inset-0 flex items-center justify-center text-sm font-bold text-gray-300">Eval: {score}</div>
                 </div>
             );
         }
-        // Clamp score for visualization, e.g., between -10 and 10 pawns
         const clampedScore = Math.max(-10, Math.min(10, numScore));
-        // Calculate percentage for white's advantage (50% is even, >50% white, <50% black)
-        const percentage = 50 + (clampedScore * 5); // Each pawn is 5%
-
-        // Determine background color based on advantage
-        const barColor = numScore >= 0 ? 'bg-white' : 'bg-gray-800 dark:bg-gray-200'; // White for positive/neutral, a darker color for black advantage
+        const percentage = 50 + (clampedScore * 5);
+        const barColor = numScore >= 0 ? 'bg-white' : 'bg-gray-800 dark:bg-gray-200';
 
         return (
             <div className="w-full bg-gray-700 rounded-full h-6 dark:bg-gray-800 my-2 relative overflow-hidden">
-                <div className={`${barColor} h-full absolute top-0 left-0 transition-width duration-300 ease-in-out`} style={{ width: `${percentage}%` }} />
-                 <div className="absolute inset-0 flex items-center justify-center text-sm font-bold text-black dark:text-white mix-blend-difference">
-                    Eval: {score}
-                </div>
+                <div className={`${barColor} h-full absolute top-0 left-0 transition-all duration-300 ease-in-out`} style={{ width: `${percentage}%` }} />
+                 <div className="absolute inset-0 flex items-center justify-center text-sm font-bold text-black dark:text-white mix-blend-difference">Eval: {score}</div>
             </div>
         );
     };
@@ -583,15 +527,11 @@ function GameAnalysis() {
     return (
         <div>
             <h1 className="text-4xl font-bold mb-8 text-gray-800 dark:text-gray-200">Chess Analysis</h1>
-
             <div className="flex flex-col lg:flex-row gap-8 items-start">
-                {/* Left Column: Chessboard and Evaluation */}
-                <div className="w-full lg:w-auto">
-                    <Chessboard position={game.fen()} boardWidth={Math.min(400, window.innerWidth * 0.9)} />
+                <div className="w-full lg:w-auto lg:max-w-md">
+                    <Chessboard position={game.fen()} boardWidth={Math.min(400, window.innerWidth - 60)} />
                     {isGameLoaded && <EvaluationBar score={evaluation} />}
                 </div>
-
-                {/* Right Column: Controls, Moves, and Analysis */}
                 <div className="w-full lg:flex-1 space-y-6">
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
                         <h2 className="text-2xl font-semibold mb-4 text-gray-700 dark:text-gray-300">PGN Loader</h2>
@@ -606,75 +546,52 @@ function GameAnalysis() {
                             className="w-full h-32 p-2 border rounded-md bg-white dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
                         />
                         {pgnError && <p className="text-red-500 text-sm mt-2">{pgnError}</p>}
-                        <button
-                            onClick={handleLoadPgn}
-                            disabled={engineStatus !== 'Ready'}
-                            className="mt-4 w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 transition disabled:bg-gray-400"
-                        >
+                        <button onClick={handleLoadPgn} disabled={engineStatus !== 'Ready'} className="mt-4 w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 transition disabled:bg-gray-400">
                             Load Game & Analyze
                         </button>
                     </div>
 
                     {isGameLoaded && (
-                        <>
-                            {/* NEW: MOVES AND NAVIGATION BLOCK */}
-                            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
-                                <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-3">Moves</h3>
-                                {/* Scrollable Move List */}
-                                <div className="h-48 overflow-y-auto bg-gray-50 dark:bg-gray-700 rounded-md p-2 mb-4">
-                                    <ol className="grid grid-cols-[auto_1fr_1fr] gap-x-4 gap-y-1 text-sm">
-                                        {history.reduce((acc, move, index) => {
-                                            if (index % 2 === 0) {
-                                                acc.push([move]);
-                                            } else {
-                                                acc[acc.length - 1].push(move);
-                                            }
-                                            return acc;
-                                        }, []).map((movePair, index) => (
-                                            <React.Fragment key={index}>
-                                                <div className="text-right text-gray-500 dark:text-gray-400">{index + 1}.</div>
-                                                {movePair.map((move, moveIndex) => (
-                                                    <div
-                                                        key={moveIndex}
-                                                        onClick={() => navigateToMove(index * 2 + moveIndex)}
-                                                        className={`p-1 rounded cursor-pointer hover:bg-indigo-100 dark:hover:bg-gray-600 ${currentMove === (index * 2 + moveIndex) ? 'bg-indigo-200 dark:bg-gray-900' : ''}`}
-                                                    >
-                                                        {move.san}
-                                                    </div>
-                                                ))}
-                                            </React.Fragment>
+                        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
+                             <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-3">Analysis</h3>
+                             <div className="h-48 overflow-y-auto bg-gray-50 dark:bg-gray-700 rounded-md p-2 mb-4">
+                                 <ol className="grid grid-cols-[auto_1fr_1fr] gap-x-4 gap-y-1 text-sm">
+                                     {history.reduce((acc, move, index) => {
+                                         if (index % 2 === 0) acc.push([move]);
+                                         else acc[acc.length - 1].push(move);
+                                         return acc;
+                                     }, []).map((movePair, index) => (
+                                         <React.Fragment key={index}>
+                                             <div className="text-right text-gray-500 dark:text-gray-400">{index + 1}.</div>
+                                             {movePair.map((move, moveIndex) => (
+                                                 <div key={moveIndex} onClick={() => navigateToMove(index * 2 + moveIndex)} className={`p-1 rounded cursor-pointer hover:bg-indigo-100 dark:hover:bg-gray-600 ${currentMove === (index * 2 + moveIndex) ? 'bg-indigo-200 dark:bg-gray-900 font-bold' : ''}`}>
+                                                     {move.san}
+                                                 </div>
+                                             ))}
+                                         </React.Fragment>
+                                     ))}
+                                 </ol>
+                             </div>
+                             <div className="flex justify-center gap-4 mb-4">
+                                 <button onClick={goToPreviousMove} disabled={currentMove <= -1} className="p-3 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed" aria-label="Previous move"><FaArrowLeft /></button>
+                                 <button onClick={goToNextMove} disabled={currentMove >= history.length - 1} className="p-3 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed" aria-label="Next move"><FaArrowRight /></button>
+                             </div>
+                             <div>
+                                 <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300">Top Engine Moves:</h3>
+                                 {topMoves.length > 0 ? (
+                                    <ul className="space-y-1 mt-2 text-gray-600 dark:text-gray-400">
+                                        {topMoves.map((move, index) => (
+                                            <li key={index} className="flex justify-between p-1 bg-gray-100 dark:bg-gray-600 rounded">
+                                                <span><span className="font-bold">{index + 1}.</span> {move.san}</span>
+                                                <span className="font-mono text-sm">{move.score}</span>
+                                            </li>
                                         ))}
-                                    </ol>
-                                </div>
-                                {/* Navigation Buttons */}
-                                <div className="flex justify-center gap-4">
-                                    <button
-                                        onClick={goToPreviousMove}
-                                        disabled={currentMove <= -1}
-                                        className="p-3 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
-                                        aria-label="Previous move"
-                                    >
-                                        <FaArrowLeft />
-                                    </button>
-                                    <button
-                                        onClick={goToNextMove}
-                                        disabled={currentMove >= history.length - 1}
-                                        className="p-3 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
-                                        aria-label="Next move"
-                                    >
-                                        <FaArrowRight />
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            {/* Engine Top Moves */}
-                            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
-                                <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300">Top Engine Moves:</h3>
-                                <ul className="list-decimal list-inside mt-2 text-gray-600 dark:text-gray-400">
-                                    {topMoves.map((move, index) => <li key={index}>{move}</li>)}
-                                </ul>
-                            </div>
-                        </>
+                                    </ul>
+                                 ) : (
+                                    <p className="text-gray-500 dark:text-gray-400 mt-2">Analyzing...</p>
+                                 )}
+                             </div>
+                        </div>
                     )}
                 </div>
             </div>

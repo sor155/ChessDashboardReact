@@ -360,9 +360,11 @@ function GameAnalysis() {
                         
                         // Process up to 5 top moves
                         for (let i = 0; i < Math.min(5, moves.length); i++) { // Changed from 3 to 5
+                            console.log(`Attempting to process move ${i + 1}: ${moves[i]} on FEN: ${tempGame.fen()}`);
                             try {
                                 // Removed { sloppy: true } as UCI moves are explicit
                                 const moveResult = tempGame.move(moves[i]); 
+                                console.log(`Result of tempGame.move(${moves[i]}):`, moveResult);
                                 if (moveResult) {
                                     topEngineMoves.push(moveResult.san);
                                     tempGame.undo(); // Undo the move to find next top move from same position

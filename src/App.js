@@ -2,15 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { Chessboard } from 'react-chessboard';
 import { Chess } from 'chess.js';
-
-// Vercel Speed Insights and Analytics require installation via npm/yarn.
-// They are commented out in this environment to allow the application to compile.
-// In a real project/deployment, you would first install them using:
-// `npm install @vercel/speed-insights @vercel/analytics`
-// or `yarn add @vercel/speed-insights @vercel/analytics`
-// After successful installation, uncomment the lines below and in the App component.
- import { SpeedInsights } from '@vercel/speed-insights/react';
- import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
+import { Analytics } from '@vercel/analytics/react';
 
 
 // --- Constants ---

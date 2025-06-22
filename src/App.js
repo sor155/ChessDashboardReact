@@ -244,7 +244,7 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
             <div>
                 <h3 className="text-lg font-semibold text-center mb-2 text-gray-800 dark:text-gray-200">{title}</h3>
                 {/* Added explicit height to the parent div for ResponsiveContainer */}
-                <div style={{ height: '250px' }}> 
+                <div style={{ height: '250px' }}>
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={data} layout="vertical" margin={{ top: 5, right: 20, left: 120, bottom: 5 }}>
                             <CartesianGrid strokeDasharray="3 3" />
@@ -329,12 +329,12 @@ function GameAnalysis() {
 
     useEffect(() => {
         const STOCKFISH_URL = process.env.PUBLIC_URL + '/stockfish-17-lite-single.js';
-    
+
         let worker;
         try {
             worker = new Worker(STOCKFISH_URL);
             stockfish.current = worker;
-    
+
             const onMessage = (event) => {
                 const message = String(event.data);
                 console.log("Stockfish message:", message); // Log all messages
@@ -360,13 +360,13 @@ function GameAnalysis() {
                         const tempGame = new Chess(currentGameForEngine.current.fen());
                         console.log("Current board (FEN) for engine parsing:", currentGameForEngine.current.fen());
                         console.log("Raw engine PV moves:", moves);
-                        
+
                         // Process up to 5 top moves
                         for (let i = 0; i < Math.min(5, moves.length); i++) { // Changed from 3 to 5
                             console.log(`Attempting to process move ${i + 1}: ${moves[i]} on FEN: ${tempGame.fen()}`);
                             try {
                                 // Removed { sloppy: true } as UCI moves are explicit
-                                const moveResult = tempGame.move(moves[i]); 
+                                const moveResult = tempGame.move(moves[i]);
                                 console.log(`Result of tempGame.move(${moves[i]}):`, moveResult);
                                 if (moveResult) {
                                     topEngineMoves.push(moveResult.san);
@@ -375,7 +375,7 @@ function GameAnalysis() {
                                 } else {
                                     console.log(`Move ${moves[i]} was illegal or could not be parsed by chess.js for FEN: ${tempGame.fen()}`);
                                 }
-                            } catch (e) { 
+                            } catch (e) {
                                 console.error("Error processing engine move:", moves[i], e);
                             }
                         }
@@ -384,16 +384,16 @@ function GameAnalysis() {
                     }
                 }
             };
-    
+
             worker.addEventListener('message', onMessage);
-    
+
             worker.onerror = (e) => {
                  setEngineStatus(`Error: Could not load Stockfish. Make sure stockfish-17-lite-single.js and .wasm are in /public.`);
                  console.error("Stockfish worker error:", e);
             };
-    
+
             worker.postMessage('uci'); // Initialize UCI protocol
-    
+
             return () => {
                 worker.removeEventListener('message', onMessage);
                 worker.terminate();
@@ -403,7 +403,7 @@ function GameAnalysis() {
             console.error("Failed to initialize Stockfish worker:", error);
         }
     }, []); // Empty dependency array means this runs once on mount
-    
+
 
     const handleLoadPgn = () => {
         setPgnError('');
@@ -421,7 +421,7 @@ function GameAnalysis() {
                 .replace(/\$\d+/g, '')       // Remove numeric annotation glyphs
                 .replace(/[\r\n\t]+/g, ' ')  // Replace newlines/tabs with spaces
                 .trim();
-            
+
             // Reconstruct PGN with cleaned movetext for loading
             const cleanedPgn = tags.join('\n') + '\n\n' + cleanedMovetext;
             newGame.loadPgn(cleanedPgn);
@@ -672,8 +672,8 @@ export default function App() {
             {/* Mobile Menu Overlay */}
             {isMobileMenuOpen && (
                 <div className="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 lg:hidden" onClick={() => setIsMobileMenuOpen(false)}>
-                    {/* The actual sliding menu panel */}
-                    <div className={`absolute left-0 top-0 h-full w-64 bg-white dark:bg-gray-800 flex flex-col shadow-lg transform transition-transform duration-300 ease-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`} onClick={(e) => e.stopPropagation()}>
+                    {/* The actual sliding menu panel, now smaller on mobile */}
+                    <div className={`absolute left-0 top-0 h-full w-48 bg-white dark:bg-gray-800 flex flex-col shadow-lg transform transition-transform duration-300 ease-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`} onClick={(e) => e.stopPropagation()}>
                         <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
                             <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">Menu</h1>
                             <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">

@@ -245,6 +245,17 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
 
     const chartColor = theme === 'dark' ? '#9ca3af' : '#9e9e9e';
 
+    const getWinRate = (record) => {
+        const wins = record?.win || 0;
+        const losses = record?.loss || 0;
+        const draws = record?.draw || 0;
+        const total = wins + losses + draws;
+
+        if (total === 0) return "N/A";
+        const winPct = (wins / total) * 100;
+        return `${winPct.toFixed(1)}%`;
+    };
+
     const OpeningChart = ({ data, color, title }) => {
         if (!data || data.length === 0) {
             return (
@@ -285,13 +296,14 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
                 </div>
             </div>
         );
-    }
+    };
 
     const StatCard = ({ title, rating, record }) => (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 text-center">
             <h3 className="text-xl font-semibold text-gray-600 dark:text-gray-400">{title}</h3>
             <p className="text-4xl font-bold text-gray-800 dark:text-gray-100 my-2">{rating || 'N/A'}</p>
             <p className="text-sm text-gray-500 dark:text-gray-400">W: {record?.win || 0} / L: {record?.loss || 0} / D: {record?.draw || 0}</p>
+            <p className="text-sm mt-1 text-indigo-500 dark:text-indigo-300 font-semibold">Win Rate: {getWinRate(record)}</p>
         </div>
     );
 
@@ -332,9 +344,21 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <StatCard title="Rapid" rating={playerData.stats?.chess_rapid?.last.rating} record={playerData.stats?.chess_rapid?.record} />
-                        <StatCard title="Blitz" rating={playerData.stats?.chess_blitz?.last.rating} record={playerData.stats?.chess_blitz?.record} />
-                        <StatCard title="Bullet" rating={playerData.stats?.chess_bullet?.last.rating} record={playerData.stats?.chess_bullet?.record} />
+                        <StatCard
+                            title="Rapid"
+                            rating={playerData.stats?.chess_rapid?.last.rating}
+                            record={playerData.stats?.chess_rapid?.record}
+                        />
+                        <StatCard
+                            title="Blitz"
+                            rating={playerData.stats?.chess_blitz?.last.rating}
+                            record={playerData.stats?.chess_blitz?.record}
+                        />
+                        <StatCard
+                            title="Bullet"
+                            rating={playerData.stats?.chess_bullet?.last.rating}
+                            record={playerData.stats?.chess_bullet?.record}
+                        />
                     </div>
 
                     <div className="mt-10 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">

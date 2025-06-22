@@ -368,7 +368,7 @@ function GameAnalysis() {
     const [commentary, setCommentary] = useState('');
     const [isGeneratingCommentary, setIsGeneratingCommentary] = useState(false);
     const stockfish = useRef(null);
-    const messageHistory = useRef([]); // Use ref to store messages without causing re-renders
+    const messageHistory = useRef([]);
 
     const getAiCommentary = useCallback(async (fen, lastMoveSan, stockfishEval, stockfishTopMoves) => {
         if (!lastMoveSan) {
@@ -427,11 +427,11 @@ function GameAnalysis() {
         setTopMoves([]);
         setCommentary('');
         
-        // This is a new handler specifically for this analysis request
         const onMessage = (event) => {
             const message = String(event.data);
+            messageHistory.current.push(message);
+
             if (message.startsWith('bestmove')) {
-                // Analysis is complete, now parse the history
                 const finalTopMoves = [];
                 const tempGame = new Chess(fen);
                  messageHistory.current.forEach(line => {
@@ -455,7 +455,7 @@ function GameAnalysis() {
                             const moveResult = tempGame.move(firstMove, { sloppy: true });
                             if (moveResult) {
                                 finalTopMoves[pvIndex] = {san: moveResult.san, score: scoreValue};
-                                tempGame.undo(); // Undo to keep the FEN consistent
+                                tempGame.undo();
                             }
                         }
                     }
@@ -471,15 +471,12 @@ function GameAnalysis() {
                     }
                 }
                 
-                // Cleanup: remove this specific listener
                 stockfish.current.removeEventListener('message', onMessage);
-            } else {
-                 messageHistory.current.push(message);
             }
         };
 
         stockfish.current.addEventListener('message', onMessage);
-        messageHistory.current = []; // Clear history for the new request
+        messageHistory.current = [];
         stockfish.current.postMessage(`position fen ${fen}`);
         stockfish.current.postMessage('go depth 15');
     }, [engineStatus, getAiCommentary]);
@@ -539,7 +536,6 @@ function GameAnalysis() {
             
             const startingFen = new Chess().fen();
             setGame(new Chess(startingFen));
-            currentGameForEngine.current = new Chess(startingFen);
             setHistory(newGame.history({ verbose: true }));
             setCurrentMove(-1);
             getEvaluation(startingFen, null);
@@ -568,7 +564,6 @@ function GameAnalysis() {
             }
         }
         setGame(tempGame);
-        currentGameForEngine.current = new Chess(tempGame.fen());
         setCurrentMove(index);
         getEvaluation(tempGame.fen(), lastMoveSan);
     }, [history, getEvaluation]);

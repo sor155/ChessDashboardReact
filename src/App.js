@@ -841,7 +841,7 @@ function InternalApp() {
         <div className="relative min-h-screen bg-gray-100 dark:bg-gray-900 font-sans">
             {/* Universal Header - fixed to top-left corner */}
             <header className="fixed top-0 left-0 z-50 bg-white dark:bg-gray-800 p-3 shadow-md flex items-center justify-between w-40"> {/* Smaller fixed width */}
-                <h1 className="text-xl font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap overflow-hidden text-ellipsis">♟️ Chess App</h1> {/* Keep title visible, maybe truncate */}
+                <h1 className="text-xl font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap overflow-hidden text-ellipsis">♟️</h1> {/* Keep title visible, maybe truncate */}
                 <button onClick={toggleMobileMenu} className="p-1 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                     <MenuIcon />
                 </button>

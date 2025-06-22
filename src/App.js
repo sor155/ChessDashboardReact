@@ -366,24 +366,54 @@ function GameAnalysis() {
     const [topMoves, setTopMoves] = useState([]);
     const [engineStatus, setEngineStatus] = useState('Loading...');
     const [commentary, setCommentary] = useState('');
+    const [opening, setOpening] = useState('');
     const [isGeneratingCommentary, setIsGeneratingCommentary] = useState(false);
     const stockfish = useRef(null);
     const analysisCache = useRef({});
+    const ecoData = useRef({});
 
-    const generateTemplatedCommentary = useCallback((lastMoveSan, analysisAfter, analysisBefore, moveColor) => {
+    useEffect(() => {
+        const loadEcoData = async () => {
+            try {
+                const ecoFiles = ['A', 'B', 'C', 'D', 'E'];
+                const allOpenings = {};
+                for (const file of ecoFiles) {
+                    const response = await fetch(`/eco${file}.json`);
+                    const data = await response.json();
+                    data.forEach(opening => {
+                        allOpenings[opening.pgn] = opening.name;
+                    });
+                }
+                ecoData.current = allOpenings;
+            } catch (error) {
+                console.error("Failed to load ECO data:", error);
+            }
+        };
+        loadEcoData();
+    }, []);
+
+    const generateTemplatedCommentary = useCallback((lastMoveSan, analysisAfter, analysisBefore) => {
         setIsGeneratingCommentary(true);
         let commentaryText = "";
-
+    
         if (!lastMoveSan || !analysisAfter || !analysisBefore || analysisAfter.length === 0 || analysisBefore.length === 0) {
             commentaryText = "Analysis data incomplete. Cannot generate commentary.";
         } else {
-            const turn = moveColor === 'w' ? 1 : -1;
+            const moveColor = history[currentMove]?.color === 'w' ? 1 : -1;
             
-            const currentScore = isNaN(parseFloat(analysisAfter[0].score)) ? (analysisAfter[0].score.startsWith('M') ? (turn * 100) : 0) : parseFloat(analysisAfter[0].score);
-            const prevScore = isNaN(parseFloat(analysisBefore[0].score)) ? (analysisBefore[0].score.startsWith('M') ? (turn * 100) : 0) : parseFloat(analysisBefore[0].score);
-            
-            const evalChange = (currentScore * turn) - (prevScore * turn);
+            const scoreToNumber = (score) => {
+                if (String(score).startsWith('M')) {
+                    const mateIn = parseInt(String(score).substring(1));
+                    return (100 - Math.abs(mateIn)) * (score.startsWith('M-') ? -1 : 1);
+                }
+                return parseFloat(score);
+            };
 
+            const currentScore = scoreToNumber(analysisAfter[0].score) * moveColor;
+            const prevScore = scoreToNumber(analysisBefore[0].score) * moveColor;
+
+            const evalChange = currentScore - prevScore;
+    
             let moveQuality = "";
             if (evalChange < -1.0) {
                 moveQuality = "a blunder";
@@ -400,10 +430,11 @@ function GameAnalysis() {
                 commentaryText += `The engine suggests ${analysisBefore[0].san} as the best move.`;
             }
         }
-
+    
         setCommentary(commentaryText);
         setIsGeneratingCommentary(false);
-    }, []);
+    }, [history, currentMove]);
+    
     
     const getEvaluation = useCallback((fen) => {
         return new Promise((resolve) => {
@@ -521,6 +552,7 @@ function GameAnalysis() {
             setGame(new Chess(startingFen));
             setHistory(newGame.history({ verbose: true }));
             setCurrentMove(-1);
+            setOpening('');
             getEvaluation(startingFen).then(analysis => {
                 if (analysis && analysis.length > 0) {
                     setEvaluation(analysis[0].score);
@@ -545,29 +577,36 @@ function GameAnalysis() {
         
         setIsGeneratingCommentary(true);
 
-        const tempGame = new Chess();
+        const tempGameForFen = new Chess();
         const fullHistory = history.map(h => h.san);
         
-        let fenBefore = new Chess().fen();
         for (let i = 0; i < index; i++) {
-             tempGame.move(fullHistory[i], { sloppy: true });
+            tempGameForFen.move(fullHistory[i], { sloppy: true });
         }
-        fenBefore = tempGame.fen();
+        const fenBefore = tempGameForFen.fen();
         
-        const moveResult = tempGame.move(fullHistory[index], { sloppy: true });
+        const moveResult = tempGameForFen.move(fullHistory[index], { sloppy: true });
         if(!moveResult) {
             setIsGeneratingCommentary(false);
             return;
         };
 
-        setGame(tempGame);
+        setGame(new Chess(tempGameForFen.fen()));
         setCurrentMove(index);
         
         const [analysisBefore, analysisAfter] = await Promise.all([
             getEvaluation(fenBefore),
-            getEvaluation(tempGame.fen())
+            getEvaluation(tempGameForFen.fen())
         ]);
         
+        const gameForPgn = new Chess();
+        for(let i=0; i<=index; i++){
+            gameForPgn.move(fullHistory[i], {sloppy: true});
+        }
+        const currentPgn = gameForPgn.pgn({ maxWidth: 5, newline: '' });
+        const openingName = ecoData.current[currentPgn];
+        setOpening(openingName || '');
+
         if (analysisAfter && analysisAfter.length > 0 && analysisBefore && analysisBefore.length > 0) {
              setEvaluation(analysisAfter[0].score);
              setTopMoves(analysisAfter.slice(0,3));
@@ -587,6 +626,7 @@ function GameAnalysis() {
                     setEvaluation(analysis[0].score);
                     setTopMoves(analysis);
                     setCommentary('This is the starting position. Make a move or navigate to see commentary.');
+                    setOpening('');
                 }
             });
         } else if (currentMove > 0) {
@@ -603,9 +643,12 @@ function GameAnalysis() {
     const EvaluationBar = ({ score }) => {
         const numScore = parseFloat(score);
         if (isNaN(numScore)) {
+            const isMate = String(score).startsWith('M');
             return (
                 <div className="w-full bg-gray-700 rounded-full h-6 dark:bg-gray-800 my-2 relative overflow-hidden">
-                    <div className="absolute inset-0 flex items-center justify-center text-sm font-bold text-gray-300">Eval: {score}</div>
+                    <div className="absolute inset-0 flex items-center justify-center text-sm font-bold text-gray-300">
+                        {isMate ? `Mate in ${String(score).substring(1)}` : `Eval: ${score}`}
+                    </div>
                 </div>
             );
         }
@@ -628,6 +671,7 @@ function GameAnalysis() {
                 <div className="w-full lg:w-auto lg:max-w-md">
                     <Chessboard position={game.fen()} boardWidth={Math.min(400, window.innerWidth - 60)} />
                     {isGameLoaded && <EvaluationBar score={evaluation} />}
+                    {opening && <div className="text-center mt-2 text-indigo-400 font-semibold">{opening}</div>}
                 </div>
                 <div className="w-full lg:flex-1 space-y-6">
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">

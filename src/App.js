@@ -434,7 +434,7 @@ function GameAnalysis() {
             };
             stockfish.current.addEventListener('message', onMessage);
             stockfish.current.postMessage(`position fen ${fen}`);
-            stockfish.current.postMessage('go depth 15');
+            stockfish.current.postMessage('go depth 35');
         });
     }, [engineStatus]);
     

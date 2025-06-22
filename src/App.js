@@ -696,7 +696,7 @@ export default function App() {
             )}
 
             {/* Desktop Sidebar Navigation */}
-            <aside className="hidden lg:flex w-56 bg-white dark:bg-gray-800 flex-shrink-0 border-r border-gray-200 dark:border-gray-700 flex-col">
+            <aside className="hidden lg:flex w-48 bg-white dark:bg-gray-800 flex-shrink-0 border-r border-gray-200 dark:border-gray-700 flex-col">
                 <div className="p-4 border-b border-gray-200 dark:border-gray-700">
                     <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">♟️ Chess App</h1>
                 </div>
@@ -705,12 +705,7 @@ export default function App() {
                     <NavItem name="Player Stats" />
                     <NavItem name="Game Analysis" />
                 </nav>
-                <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-                    <button onClick={toggleTheme} className="w-full flex items-center justify-center p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-                        {theme === 'light' ? <MoonIcon /> : <SunIcon />}
-                        <span className="ml-2">Switch Theme</span>
-                    </button>
-                </div>
+                {/* Theme switch button removed from desktop sidebar, now only in mobile menu */}
             </aside>
 
             {/* Main Content */}

@@ -583,7 +583,7 @@ export default function App() {
     const [openingStats, setOpeningStats] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // New state for mobile menu
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // State for mobile menu visibility
 
     const loadAllData = useCallback(async () => {
         setLoading(true);
@@ -650,7 +650,7 @@ export default function App() {
         }
     };
 
-    // Updated NavItem to close menu on click
+    // NavItem now also closes the mobile menu
     const NavItem = ({ name }) => (
         <button onClick={() => { setActiveTab(name); setIsMobileMenuOpen(false); }} className={`w-full text-left px-4 py-2.5 rounded-lg text-md transition-colors ${activeTab === name ? 'bg-indigo-100 dark:bg-gray-700 text-indigo-700 dark:text-gray-100 font-semibold' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 hover:text-gray-100'}`}>
             {name}
@@ -672,7 +672,8 @@ export default function App() {
             {/* Mobile Menu Overlay */}
             {isMobileMenuOpen && (
                 <div className="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 lg:hidden" onClick={() => setIsMobileMenuOpen(false)}>
-                    <div className="absolute left-0 top-0 h-full w-64 bg-white dark:bg-gray-800 flex flex-col shadow-lg" onClick={(e) => e.stopPropagation()}>
+                    {/* The actual sliding menu panel */}
+                    <div className={`absolute left-0 top-0 h-full w-3/4 max-w-xs bg-white dark:bg-gray-800 flex flex-col shadow-lg transform transition-transform duration-300 ease-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`} onClick={(e) => e.stopPropagation()}>
                         <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
                             <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">Menu</h1>
                             <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">

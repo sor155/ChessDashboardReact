@@ -3,6 +3,12 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { Chessboard } from 'react-chessboard';
 import { Chess } from 'chess.js';
 
+// Vercel Speed Insights requires installation via npm/yarn.
+// It is commented out to allow the application to compile in this environment.
+// In a real project, you would install it: `npm install @vercel/speed-insights`
+// import { SpeedInsights } from '@vercel/speed-insights/react';
+
+
 // --- Constants ---
 const FRIENDS = [
     { name: "Ulysse", username: "realulysse" },
@@ -519,7 +525,7 @@ function GameAnalysis() {
 
     return (
         <div>
-            <h1 className="text-4xl font-bold mb-8 text-gray-800 dark:text-gray-200">Game Analysis</h1>
+            <h1 className="text-4xl font-bold mb-8 text-gray-800 dark:text-gray-200">Chess Analysis</h1>
 
             <div className="flex flex-col lg:flex-row gap-8 items-start">
                 <div className="w-full lg:w-auto">
@@ -585,7 +591,8 @@ function GameAnalysis() {
     );
 }
 
-export default function App() {
+// Renamed the main App component to InternalApp
+function InternalApp() {
     const [theme, setTheme] = useTheme();
     const [activeTab, setActiveTab] = useState('Dashboard');
     const [currentRatings, setCurrentRatings] = useState([]);
@@ -710,7 +717,7 @@ export default function App() {
                 </div>
             )}
 
-            {/* Main Content */}
+     {/* Main Content */}
             {/* Adjusted padding for main content based on header size and screen size */}
             <main className="flex-1 overflow-y-auto p-8 pt-16 pl-8 lg:pl-48"> {/* Default pl-8 for mobile, pl-48 for larger screens */}
                 {renderTab()}
@@ -718,13 +725,15 @@ export default function App() {
         </div>
     );
 }
-import { SpeedInsights } from '@vercel/speed-insights/react';
- 
+
+// New default export App component that includes SpeedInsights
 export default function App() {
-  return (
-    <div>
-      {/* ... */}
-      <SpeedInsights />
-    </div>
-  );
+    return (
+        <>
+            <InternalApp />
+            {/* SpeedInsights component commented out as it caused compilation issues. */}
+            {/* In a real project, ensure `@vercel/speed-insights` is installed */}
+            {/* <SpeedInsights /> */}
+        </>
+    );
 }

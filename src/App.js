@@ -374,7 +374,7 @@ function GameAnalysis() {
     const [topMoves, setTopMoves] = useState([]);
     const [engineStatus, setEngineStatus] = useState('Loading...');
     const [opening, setOpening] = useState('');
-    const [gameData, setGameData] = useState(null); // State for game metadata
+    const [gameData, setGameData] = useState(null);
     const stockfish = useRef(null);
     const analysisCache = useRef({});
     const ecoData = useRef({});
@@ -540,7 +540,6 @@ function GameAnalysis() {
 
             if (newGame.history().length === 0) throw new Error("PGN loaded, but no moves found.");
 
-            // Extract and set game metadata from PGN headers
             const header = newGame.header();
             setGameData({
                 white: header.White || 'Unknown',
@@ -564,7 +563,7 @@ function GameAnalysis() {
             setCurrentMove(-1);
             setEvaluation('');
             setTopMoves([]);
-            setGameData(null); // Clear game data on error
+            setGameData(null);
         }
     };
 
@@ -639,6 +638,28 @@ function GameAnalysis() {
         );
     };
 
+    const GameInfo = ({ data, opening }) => {
+        if (!data) return null;
+        return (
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md mt-4 text-center">
+                <p className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                    {data.white} vs {data.black}
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Result: {data.result}
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Time Control: {data.timeControl}
+                </p>
+                {opening && (
+                    <p className="text-sm text-indigo-400 font-semibold mt-2">
+                        Opening: {opening}
+                    </p>
+                )}
+            </div>
+        );
+    };
+
     return (
         <div>
             <h1 className="text-4xl font-bold mb-8 text-gray-800 dark:text-gray-200">Chess Analysis</h1>
@@ -650,8 +671,7 @@ function GameAnalysis() {
                         boardWidth={Math.min(400, window.innerWidth - 60)}
                     />
                     {isGameLoaded && <EvaluationBar score={evaluation} />}
-                    {opening && <div className="text-center mt-2 text-indigo-400 font-semibold">{opening}</div>}
-                    <GameInfo data={gameData} />
+                    <GameInfo data={gameData} opening={opening} />
                 </div>
                 <div className="w-full lg:flex-1 space-y-6">
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">

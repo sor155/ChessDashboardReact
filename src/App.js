@@ -299,6 +299,15 @@ function GameAnalysis() {
     const stockfish = useRef(null);
     const currentGameForEngine = useRef(new Chess());
 
+    // Memoize getEvaluation to prevent it from changing on every render
+    const getEvaluation = useCallback((fen) => {
+        if (engineStatus !== 'Ready' || !stockfish.current) return;
+        setEvaluation('...'); // Show loading state for evaluation
+        setTopMoves([]);      // Clear previous top moves
+        stockfish.current.postMessage(`position fen ${fen}`);
+        stockfish.current.postMessage('go depth 15'); // Request evaluation up to depth 15
+    }, [engineStatus]); // Add engineStatus to dependencies
+
     useEffect(() => {
         const STOCKFISH_URL = process.env.PUBLIC_URL + '/stockfish-17-lite-single.js';
     
@@ -358,14 +367,6 @@ function GameAnalysis() {
         }
     }, []);
     
-
-    const getEvaluation = (fen) => {
-        if (engineStatus !== 'Ready' || !stockfish.current) return;
-        setEvaluation('...'); // Show loading state for evaluation
-        setTopMoves([]);      // Clear previous top moves
-        stockfish.current.postMessage(`position fen ${fen}`);
-        stockfish.current.postMessage('go depth 15'); // Request evaluation up to depth 15
-    };
 
     const handleLoadPgn = () => {
         setPgnError('');

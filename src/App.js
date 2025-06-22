@@ -229,23 +229,21 @@ function PlayerStats({ theme, openingStats: allOpeningStats }) {
         return (
             <div>
                 <h3 className="text-lg font-semibold text-center mb-2 text-gray-800 dark:text-gray-200">{title}</h3>
-                <div style={{ height: '250px' }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={data} layout="vertical" margin={{ top: 5, right: 20, left: 120, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis type="number" dataKey="games_played" stroke={chartColor} />
-                            <YAxis type="category" dataKey="opening_name" width={120} stroke={chartColor} tick={{ fontSize: 12 }} />
-                          <Tooltip contentStyle={{ backgroundColor: theme === 'dark' ? '#1f2937' : '#ffffff' }} formatter={(value, name, props) => {
-    if (name === "games_played") {
-        const { white_wins, draws } = props.payload;
-        return `${value} (W: ${white_wins}, L: ${props.payload.losses}, D: ${draws})`;
-    }
-    return value;
-}} />
-                            <Bar dataKey="games_played" fill={color} />
-                        </BarChart>
-                    </ResponsiveContainer>
-                </div>
+                <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={data} layout="vertical" margin={{ top: 5, right: 20, left: 120, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis type="number" dataKey="games_played" stroke={chartColor} />
+                        <YAxis type="category" dataKey="opening_name" width={120} stroke={chartColor} tick={{ fontSize: 12 }} />
+                        <Tooltip contentStyle={{ backgroundColor: theme === 'dark' ? '#1f2937' : '#ffffff' }} formatter={(value, name, props) => {
+                            if (name === "games_played") {
+                                const { white_wins, draws } = props.payload;
+                                return `${value} (W: ${white_wins}, L: ${props.payload.losses}, D: ${draws})`;
+                            }
+                            return value;
+                        }} />
+                        <Bar dataKey="games_played" fill={color} />
+                    </BarChart>
+                </ResponsiveContainer>
             </div>
         );
     }
@@ -346,15 +344,17 @@ function GameAnalysis() {
                         console.log("Current board (FEN) for engine parsing:", currentGameForEngine.current.fen());
                         console.log("Raw engine PV moves:", moves);
                         
-                        for (let i = 0; i < Math.min(3, moves.length); i++) {
+                        // Process up to 5 top moves
+                        for (let i = 0; i < Math.min(5, moves.length); i++) { // Changed from 3 to 5
                             try {
-                                const moveResult = tempGame.move(moves[i], { sloppy: true });
+                                // Removed { sloppy: true } as UCI moves are explicit
+                                const moveResult = tempGame.move(moves[i]); 
                                 if (moveResult) {
                                     topEngineMoves.push(moveResult.san);
                                     tempGame.undo(); // Undo the move to find next top move from same position
                                     console.log(`Processed move: ${moveResult.san}. Temp game FEN after undo: ${tempGame.fen()}`);
                                 } else {
-                                    console.log(`Move ${moves[i]} was illegal in temp game for FEN: ${tempGame.fen()}`);
+                                    console.log(`Move ${moves[i]} was illegal or could not be parsed by chess.js for FEN: ${tempGame.fen()}`);
                                 }
                             } catch (e) { 
                                 console.error("Error processing engine move:", moves[i], e);

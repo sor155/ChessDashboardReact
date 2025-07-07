@@ -1,9 +1,9 @@
 [
   {
     "player": "Ulysse",
-    "rapid": null,
-    "blitz": null,
-    "bullet": null
+    "rapid": 1981,
+    "blitz": 1511,
+    "bullet": 1349
   },
   {
     "player": "Simon",
@@ -13,9 +13,9 @@
   },
   {
     "player": "Adrien",
-    "rapid": null,
-    "blitz": null,
-    "bullet": null
+    "rapid": 1635,
+    "blitz": 1110,
+    "bullet": 759
   },
   {
     "player": "Alex",
@@ -25,8 +25,8 @@
   },
   {
     "player": "Kevin",
-    "rapid": null,
-    "blitz": null,
-    "bullet": null
+    "rapid": 702,
+    "blitz": 846,
+    "bullet": 577
   }
 ]

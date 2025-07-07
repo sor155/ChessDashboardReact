@@ -8640,39 +8640,93 @@
     "date": "2025-06-22 01:20:24"
   },
   {
+    "player": "Ulysse",
+    "category": "C - Rapid",
+    "rating": 1981,
+    "date": "2025-07-07 18:13:19"
+  },
+  {
+    "player": "Ulysse",
+    "category": "C - Blitz",
+    "rating": 1511,
+    "date": "2025-07-07 18:13:19"
+  },
+  {
+    "player": "Ulysse",
+    "category": "C - Bullet",
+    "rating": 1349,
+    "date": "2025-07-07 18:13:19"
+  },
+  {
     "player": "Simon",
     "category": "C - Rapid",
     "rating": 1006,
-    "date": "2025-07-07 17:41:41"
+    "date": "2025-07-07 18:13:19"
   },
   {
     "player": "Simon",
     "category": "C - Blitz",
     "rating": 424,
-    "date": "2025-07-07 17:41:41"
+    "date": "2025-07-07 18:13:19"
   },
   {
     "player": "Simon",
     "category": "C - Bullet",
     "rating": 716,
-    "date": "2025-07-07 17:41:41"
+    "date": "2025-07-07 18:13:19"
+  },
+  {
+    "player": "Adrien",
+    "category": "C - Rapid",
+    "rating": 1635,
+    "date": "2025-07-07 18:13:19"
+  },
+  {
+    "player": "Adrien",
+    "category": "C - Blitz",
+    "rating": 1110,
+    "date": "2025-07-07 18:13:19"
+  },
+  {
+    "player": "Adrien",
+    "category": "C - Bullet",
+    "rating": 759,
+    "date": "2025-07-07 18:13:19"
   },
   {
     "player": "Alex",
     "category": "C - Rapid",
     "rating": 874,
-    "date": "2025-07-07 17:41:41"
+    "date": "2025-07-07 18:13:19"
   },
   {
     "player": "Alex",
     "category": "C - Blitz",
     "rating": 268,
-    "date": "2025-07-07 17:41:41"
+    "date": "2025-07-07 18:13:19"
   },
   {
     "player": "Alex",
     "category": "C - Bullet",
     "rating": 487,
-    "date": "2025-07-07 17:41:41"
+    "date": "2025-07-07 18:13:19"
+  },
+  {
+    "player": "Kevin",
+    "category": "C - Rapid",
+    "rating": 702,
+    "date": "2025-07-07 18:13:19"
+  },
+  {
+    "player": "Kevin",
+    "category": "C - Blitz",
+    "rating": 846,
+    "date": "2025-07-07 18:13:19"
+  },
+  {
+    "player": "Kevin",
+    "category": "C - Bullet",
+    "rating": 577,
+    "date": "2025-07-07 18:13:19"
   }
 ]

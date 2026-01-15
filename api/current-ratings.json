@@ -1,32 +1,32 @@
 [
   {
     "player": "Ulysse",
-    "rapid": 2001,
-    "blitz": 1511,
-    "bullet": 1349
+    "rapid": null,
+    "blitz": null,
+    "bullet": null
   },
   {
     "player": "Simon",
-    "rapid": 1006,
-    "blitz": 424,
-    "bullet": 716
+    "rapid": null,
+    "blitz": null,
+    "bullet": null
   },
   {
     "player": "Adrien",
-    "rapid": 1630,
-    "blitz": 1088,
-    "bullet": 717
+    "rapid": null,
+    "blitz": null,
+    "bullet": null
   },
   {
     "player": "Alex",
-    "rapid": 874,
-    "blitz": 242,
-    "bullet": 487
+    "rapid": null,
+    "blitz": null,
+    "bullet": null
   },
   {
     "player": "Kevin",
-    "rapid": 702,
-    "blitz": 846,
-    "bullet": 577
+    "rapid": null,
+    "blitz": null,
+    "bullet": null
   }
 ]

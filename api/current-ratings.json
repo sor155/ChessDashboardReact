@@ -1,15 +1,15 @@
 [
   {
     "player": "Ulysse",
-    "rapid": null,
-    "blitz": null,
-    "bullet": null
+    "rapid": 2001,
+    "blitz": 1511,
+    "bullet": 1349
   },
   {
     "player": "Simon",
-    "rapid": null,
-    "blitz": null,
-    "bullet": null
+    "rapid": 1006,
+    "blitz": 424,
+    "bullet": 716
   },
   {
     "player": "Adrien",
@@ -25,8 +25,8 @@
   },
   {
     "player": "Kevin",
-    "rapid": null,
-    "blitz": null,
-    "bullet": null
+    "rapid": 702,
+    "blitz": 846,
+    "bullet": 577
   }
 ]

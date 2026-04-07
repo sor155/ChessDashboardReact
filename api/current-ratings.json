@@ -19,14 +19,14 @@
   },
   {
     "player": "Alex",
-    "rapid": null,
-    "blitz": null,
-    "bullet": null
+    "rapid": 874,
+    "blitz": 242,
+    "bullet": 487
   },
   {
     "player": "Kevin",
-    "rapid": null,
-    "blitz": null,
-    "bullet": null
+    "rapid": 702,
+    "blitz": 846,
+    "bullet": 577
   }
 ]

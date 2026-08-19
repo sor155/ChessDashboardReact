@@ -7,9 +7,9 @@
   },
   {
     "player": "Simon",
-    "rapid": 1006,
-    "blitz": 424,
-    "bullet": 716
+    "rapid": null,
+    "blitz": null,
+    "bullet": null
   },
   {
     "player": "Adrien",
